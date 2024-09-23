@@ -1,10 +1,14 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/0x00f00bar/web-crawler/models"
+	"github.com/0x00f00bar/web-crawler/models/psql"
 )
 
 // const baseURL = "https://bankofbaroda.in"
@@ -31,4 +35,9 @@ func main() {
 		fmt.Println(k, v)
 	}
 	// fmt.Println(string(body))
+	var models models.Models
+	var ddd *sql.DB
+
+	db := psql.NewPsqlDB(ddd)
+	models.Pages = db.PageModel
 }
