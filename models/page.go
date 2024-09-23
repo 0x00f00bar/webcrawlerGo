@@ -4,7 +4,8 @@ import (
 	"time"
 )
 
-type Pages struct {
+type Page struct {
+	ID      uint
 	URL     string
 	AddedAt time.Time
 	Content string
