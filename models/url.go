@@ -9,7 +9,7 @@ type URL struct {
 	URL              string
 	FirstEncountered time.Time
 	LastChecked      time.Time
-	LastDownloaded   time.Time
+	LastSaved        time.Time
 	IsMonitored      bool
 	Version          uint
 }
