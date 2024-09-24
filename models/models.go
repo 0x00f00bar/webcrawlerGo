@@ -6,6 +6,7 @@ var (
 	ErrRecordNotFound = errors.New("models: record not found")
 	ErrNullURL        = errors.New("models: urls cannot be empty or null")
 	ErrEditConflict   = errors.New("models: edit conflict")
+	ErrInvalidOrderBy = errors.New("models: invalid order by")
 )
 
 type Models struct {
@@ -18,13 +19,14 @@ type URLModel interface {
 	GetByURL(url string) (*URL, error)
 	Insert(*URL) error
 	Update(*URL) error
-	Delete(int) error
+	Delete(id int) error
 }
 
 type PageModel interface {
 	GetById(id int) (*Page, error)
-	GetByURL(url string) (*Page, error)
+	GetAllByURL(urlId uint, orderBy string) ([]*Page, error)
 	Insert(*Page) error
-	Update(*Page) error
-	Delete(int) error
+	// Update method is not required, yet
+	// Update(*Page) error
+	Delete(id int) error
 }
