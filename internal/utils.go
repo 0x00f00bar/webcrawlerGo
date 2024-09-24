@@ -1,4 +1,4 @@
-package common
+package internal
 
 func ValuePresent(needle string, haystack []string) bool {
 	for _, s := range haystack {
