@@ -3,9 +3,13 @@ package psql
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/0x00f00bar/web-crawler/models"
 )
+
+var validURLColumns = []string{"id", "url", "first_encountered", "last_checked",
+	"last_saved", "is_monitored", "version"}
 
 // urlDB is used to implement URLModel interface
 type urlDB struct {
@@ -85,7 +89,7 @@ func (u urlDB) GetByURL(urlStr string) (*models.URL, error) {
 	return &url, nil
 }
 
-// Insert writes a url to url table
+// Insert writes a url to urls table
 func (u urlDB) Insert(m *models.URL) error {
 	query := `
 	INSERT INTO urls (url, last_checked, last_saved, is_monitored)
@@ -97,7 +101,7 @@ func (u urlDB) Insert(m *models.URL) error {
 	return u.DB.QueryRow(query, args...).Scan(&m.ID, &m.FirstEncountered, &m.Version)
 }
 
-// Update updates a url table row with provided values.
+// Update updates a urls table row with provided values.
 // Optimistic lockin enabled: if version change detected
 // return ErrEditConflict
 func (u urlDB) Update(m *models.URL) error {
@@ -151,6 +155,10 @@ func (u urlDB) Delete(id int) error {
 // GetAll fetches all rows from urls table in orderBy order
 func (u urlDB) GetAll(orderBy string) ([]*models.URL, error) {
 
+	if !models.ValidOrderBy(orderBy, validURLColumns) {
+		return nil, fmt.Errorf("%w : %s", models.ErrInvalidOrderBy, orderBy)
+	}
+
 	query := `
 	SELECT id, url, first_encountered, last_checked, last_saved, is_monitored, version
 	FROM urls
@@ -192,6 +200,10 @@ func (u urlDB) GetAll(orderBy string) ([]*models.URL, error) {
 
 // GetAll fetches all rows where is_monitored is true from urls table in orderBy order
 func (u urlDB) GetAllMonitored(orderBy string) ([]*models.URL, error) {
+
+	if !models.ValidOrderBy(orderBy, validURLColumns) {
+		return nil, fmt.Errorf("%w : %s", models.ErrInvalidOrderBy, orderBy)
+	}
 
 	query := `
 	SELECT id, url, first_encountered, last_checked, last_saved, is_monitored, version
