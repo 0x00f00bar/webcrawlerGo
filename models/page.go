@@ -6,7 +6,7 @@ import (
 
 type Page struct {
 	ID      uint
-	URL     string
+	URLID   uint
 	AddedAt time.Time
 	Content string
 }
