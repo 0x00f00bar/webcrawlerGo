@@ -1,10 +1,7 @@
 package models
 
+import "github.com/0x00f00bar/web-crawler/common"
+
 func ValidOrderBy(orderBy string, validFields []string) bool {
-	for _, s := range validFields {
-		if s == orderBy {
-			return true
-		}
-	}
-	return false
+	return common.ValuePresent(orderBy, validFields)
 }
