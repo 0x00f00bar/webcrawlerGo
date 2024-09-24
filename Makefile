@@ -3,7 +3,7 @@ include .env
 # export $(shell sed 's/=.*//' .env)
 run:
 	@echo "Executing go run ..."
-	@go run main.go
+	@go run cmd/*
 
 migrate-up:
 	@echo "Migrating up ..."
