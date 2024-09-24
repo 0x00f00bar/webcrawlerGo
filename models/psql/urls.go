@@ -147,3 +147,88 @@ func (u urlDB) Delete(id int) error {
 
 	return nil
 }
+
+// GetAll fetches all rows from urls table in orderBy order
+func (u urlDB) GetAll(orderBy string) ([]*models.URL, error) {
+
+	query := `
+	SELECT id, url, first_encountered, last_checked, last_saved, is_monitored, version
+	FROM urls
+	ORDER BY $1`
+
+	rows, err := u.DB.Query(query, orderBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	urls := []*models.URL{}
+
+	for rows.Next() {
+
+		var url models.URL
+
+		err := rows.Scan(
+			&url.ID,
+			&url.URL,
+			&url.FirstEncountered,
+			&url.LastChecked,
+			&url.LastSaved,
+			&url.IsMonitored,
+			&url.Version,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		urls = append(urls, &url)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return urls, nil
+}
+
+// GetAll fetches all rows where is_monitored is true from urls table in orderBy order
+func (u urlDB) GetAllMonitored(orderBy string) ([]*models.URL, error) {
+
+	query := `
+	SELECT id, url, first_encountered, last_checked, last_saved, is_monitored, version
+	FROM urls
+	WHERE is_monitored = true
+	ORDER BY $1`
+
+	rows, err := u.DB.Query(query, orderBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	urls := []*models.URL{}
+
+	for rows.Next() {
+
+		var url models.URL
+
+		err := rows.Scan(
+			&url.ID,
+			&url.URL,
+			&url.FirstEncountered,
+			&url.LastChecked,
+			&url.LastSaved,
+			&url.IsMonitored,
+			&url.Version,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		urls = append(urls, &url)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return urls, nil
+}
