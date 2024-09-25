@@ -13,3 +13,13 @@ type URL struct {
 	IsMonitored      bool
 	Version          uint
 }
+
+func NewURL(url string, lastChecked, lastSaved time.Time, isMonitored bool) *URL {
+	return &URL{
+		URL:              url,
+		FirstEncountered: time.Now(),
+		LastChecked:      lastChecked,
+		LastSaved:        lastSaved,
+		IsMonitored:      isMonitored,
+	}
+}
