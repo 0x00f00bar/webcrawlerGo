@@ -90,7 +90,7 @@ func (q *UniqueQueue) Push(item string) {
 	}
 }
 
-// PushForce appends item to the queue without checking that item isn't present.
+// PushForce appends item to the queue WITHOUT checking that item isn't present.
 // Useful when item was not processed successfully and needs to be reprocessed.
 //
 // Default item value is 'false'.
