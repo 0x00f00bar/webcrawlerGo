@@ -1,4 +1,4 @@
-package webcrawler
+package queue
 
 import (
 	"errors"
@@ -8,11 +8,23 @@ import (
 var ErrEmptyQueue = errors.New("queue is empty")
 var ErrItemNotFound = errors.New("item never pushed to queue")
 
+// bool in map represents whether the item was processed
+// and the presence of item in map represents that a crawler have seen this URL before
+// i.e. the URL is not unique
+
 // UniqueQueue holds unique values in its queue
 type UniqueQueue struct {
 	queue  []string
 	strMap map[string]bool
 	mu     sync.Mutex
+}
+
+// NewQueue returns a pointer to new UniqueQueue
+func NewQueue() *UniqueQueue {
+	return &UniqueQueue{
+		strMap: map[string]bool{},
+		mu:     sync.Mutex{},
+	}
 }
 
 // Size returns the size of queue
@@ -76,6 +88,19 @@ func (q *UniqueQueue) Push(item string) {
 		q.strMap[item] = false
 		q.queue = append(q.queue, item)
 	}
+}
+
+// PushForce appends item to the queue without checking that item isn't present.
+// Useful when item was not processed successfully and needs to be reprocessed.
+//
+// Default item value is 'false'.
+//
+// Thread safe.
+func (q *UniqueQueue) PushForce(item string) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.strMap[item] = false
+	q.queue = append(q.queue, item)
 }
 
 // Pop pops first item from the queue.
