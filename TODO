@@ -1,3 +1,5 @@
 TODO
 
 - [ ] Add timeout in DB query
+- [ ] strip trailing / in Base URL arg before init new crawler, add leading / if not present in marked Urls
+- [ ] Add index to DB
