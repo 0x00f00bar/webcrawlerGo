@@ -5,8 +5,10 @@ import (
 	"sync"
 )
 
-var ErrEmptyQueue = errors.New("queue is empty")
-var ErrItemNotFound = errors.New("item never pushed to queue")
+var (
+	ErrEmptyQueue   = errors.New("queue is empty")
+	ErrItemNotFound = errors.New("item never pushed to queue")
+)
 
 // bool in map represents whether the item was processed
 // and the presence of item in map represents that a crawler have seen this URL before
@@ -37,9 +39,9 @@ func (q *UniqueQueue) IsEmpty() bool {
 	return q.Size() == 0
 }
 
-// IsPresent checks if the item was ever pushed to the queue
+// FirstEncounter checks if the item was ever pushed to the queue
 // by checking the map
-func (q *UniqueQueue) IsPresent(item string) bool {
+func (q *UniqueQueue) FirstEncounter(item string) bool {
 	if _, ok := q.strMap[item]; ok {
 		return true
 	}
@@ -84,7 +86,7 @@ func (q *UniqueQueue) SetMapValue(key string, value bool) {
 func (q *UniqueQueue) Push(item string) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	if !q.IsPresent(item) {
+	if !q.FirstEncounter(item) {
 		q.strMap[item] = false
 		q.queue = append(q.queue, item)
 	}
