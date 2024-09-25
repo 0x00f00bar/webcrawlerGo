@@ -1,4 +1,4 @@
-package main
+package webcrawler
 
 import (
 	"math/rand"
