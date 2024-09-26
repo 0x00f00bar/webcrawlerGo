@@ -1,14 +1,17 @@
 package psql
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/0x00f00bar/web-crawler/models"
 )
 
 var validPageColumns = []string{"id", "url_id", "added_at", "content"}
+var defaultTimeout = 5 * time.Second
 
 // pageDB is used to implement PageModel interface
 type pageDB struct {
@@ -35,7 +38,10 @@ func (p pageDB) GetById(id int) (*models.Page, error) {
 
 	var page models.Page
 
-	err := p.DB.QueryRow(query, id).Scan(
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	err := p.DB.QueryRowContext(ctx, query, id).Scan(
 		&page.ID,
 		&page.URLID,
 		&page.AddedAt,
@@ -72,7 +78,10 @@ func (p pageDB) GetAllByURL(urlID uint, orderBy string) ([]*models.Page, error) 
 	WHERE url_id = $1
 	ORDER BY $2`
 
-	rows, err := p.DB.Query(query, urlID, orderBy)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	rows, err := p.DB.QueryContext(ctx, query, urlID, orderBy)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +121,10 @@ func (p pageDB) Insert(m *models.Page) error {
 
 	args := []interface{}{m.URLID, m.Content}
 
-	return p.DB.QueryRow(query, args...).Scan(&m.ID, &m.AddedAt)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	return p.DB.QueryRowContext(ctx, query, args...).Scan(&m.ID, &m.AddedAt)
 }
 
 // Update not required on pages table
@@ -129,7 +141,10 @@ func (p pageDB) Delete(id int) error {
 	DELETE from pages
 	WHERE id = $1`
 
-	result, err := p.DB.Exec(query, id)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	result, err := p.DB.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
 	}

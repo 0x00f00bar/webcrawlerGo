@@ -1,6 +1,7 @@
 package psql
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -34,9 +35,12 @@ func (u urlDB) GetById(id int) (*models.URL, error) {
 	FROM urls
 	WHERE id = $1`
 
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
 	var url models.URL
 
-	err := u.DB.QueryRow(query, id).Scan(
+	err := u.DB.QueryRowContext(ctx, query, id).Scan(
 		&url.ID,
 		&url.FirstEncountered,
 		&url.LastChecked,
@@ -67,9 +71,12 @@ func (u urlDB) GetByURL(urlStr string) (*models.URL, error) {
 	FROM urls
 	WHERE url = $1`
 
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
 	var url models.URL
 
-	err := u.DB.QueryRow(query, urlStr).Scan(
+	err := u.DB.QueryRowContext(ctx, query, urlStr).Scan(
 		&url.ID,
 		&url.FirstEncountered,
 		&url.LastChecked,
@@ -98,7 +105,10 @@ func (u urlDB) Insert(m *models.URL) error {
 
 	args := []interface{}{m.URL, m.LastChecked, m.LastSaved, m.IsMonitored}
 
-	return u.DB.QueryRow(query, args...).Scan(&m.ID, &m.FirstEncountered, &m.Version)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	return u.DB.QueryRowContext(ctx, query, args...).Scan(&m.ID, &m.FirstEncountered, &m.Version)
 }
 
 // Update updates a urls table row with provided values.
@@ -111,9 +121,12 @@ func (u urlDB) Update(m *models.URL) error {
 	WHERE id = $4 AND version = $5
 	RETURNING version`
 
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
 	args := []interface{}{m.LastChecked, m.LastSaved, m.IsMonitored, m.ID, m.Version}
 
-	err := u.DB.QueryRow(query, args...).Scan(&m.Version)
+	err := u.DB.QueryRowContext(ctx, query, args...).Scan(&m.Version)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -135,7 +148,10 @@ func (u urlDB) Delete(id int) error {
 	DELETE from urls
 	WHERE id = $1`
 
-	result, err := u.DB.Exec(query, id)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	result, err := u.DB.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
 	}
@@ -164,7 +180,10 @@ func (u urlDB) GetAll(orderBy string) ([]*models.URL, error) {
 	FROM urls
 	ORDER BY $1`
 
-	rows, err := u.DB.Query(query, orderBy)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	rows, err := u.DB.QueryContext(ctx, query, orderBy)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +230,10 @@ func (u urlDB) GetAllMonitored(orderBy string) ([]*models.URL, error) {
 	WHERE is_monitored = true
 	ORDER BY $1`
 
-	rows, err := u.DB.Query(query, orderBy)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	rows, err := u.DB.QueryContext(ctx, query, orderBy)
 	if err != nil {
 		return nil, err
 	}
