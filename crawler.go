@@ -3,6 +3,7 @@ package webcrawler
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -19,7 +20,7 @@ import (
 
 var (
 	defaultSleepDuration = 500 * time.Microsecond
-	defaultIdleTimeout   = 10 * time.Second
+	// defaultIdleTimeout   = 10 * time.Second
 )
 
 // Crawler crawls the URL fetched from Queue and saves
@@ -54,16 +55,14 @@ func NewCrawler(
 		return nil, errors.New("crawler: models cannot be nil")
 	}
 
-	if !isValidScheme(baseURI.Scheme) {
-		return nil, errors.New(
-			fmt.Sprintf(
-				"crawler: invalid scheme '%s'. Supported schemes: HTTP, HTTPS",
-				baseURI.Scheme,
-			),
+	if !internal.IsValidScheme(baseURI.Scheme) {
+		return nil, fmt.Errorf(
+			"crawler: invalid scheme '%s'. Supported schemes: HTTP, HTTPS",
+			baseURI.Scheme,
 		)
 	}
 
-	if !isAbsoluteURL(baseURI.String()) {
+	if !internal.IsAbsoluteURL(baseURI.String()) {
 		return nil, errors.New("crawler: Base URI should be absolute")
 	}
 
@@ -110,21 +109,15 @@ func (c *Crawler) Crawl(clientTimeout time.Duration) {
 			continue
 		}
 
-		// add base URI if relative url
-
-		// validate URL: not empty, of the base domain
-
-		// if url -> fetch all urls embedded in the page
 		resp, err := getURL(urlpath, client)
 		if err != nil {
-			// error occured in GET request, log error
 			c.Log.Printf("%s: error in GET request: %v", c.Name, err)
 			// and add the url back to queue
 			c.Queue.PushForce(urlpath)
 			continue
 		}
 
-		// if response status != 200, log error and continue
+		// if response not 200 OK
 		if resp.StatusCode != http.StatusOK {
 			c.Log.Printf(
 				"%s: error in GET request: HTTP status code received %d",
@@ -134,7 +127,12 @@ func (c *Crawler) Crawl(clientTimeout time.Duration) {
 			continue
 		}
 
+		// if OK fetch all urls embedded in the page
 		urls, err := c.fetchEmbeddedURLs(resp)
+		if err != nil {
+			c.Log.Printf("%s: failed to fetch embedded URLs for URL '%s' : %v", c.Name, urlpath, err)
+			continue
+		}
 
 		// go through fetched urls, if url not in queue(map) save to db and queue
 		for _, href := range urls {
@@ -145,10 +143,28 @@ func (c *Crawler) Crawl(clientTimeout time.Duration) {
 				u := models.NewURL(href, t, t, c.isMarkedURL(href))
 				c.Models.URLs.Insert(u)
 				c.Queue.Push(href)
+				// if url is marked set value to true to fetch its content
+				if u.IsMonitored {
+					c.Queue.SetMapValue(href, true)
+				}
 			}
 		}
 
+		urlProcessed, err := c.Queue.GetMapValue(urlpath)
+		if errors.Is(err, queue.ErrItemNotFound) {
+			c.Log.Fatalf("%s: URL not found in queue '%s'. Quitting.", c.Name, urlpath)
+		}
+
 		// if current url is to be monitored/saved, save content to DB and update url
+		if c.isMarkedURL(urlpath) && !urlProcessed {
+			err = c.savePageContent(urlpath, resp)
+			if err != nil {
+				c.Log.Fatal(err)
+			}
+
+			// set key value to false as url is not processed
+			c.Queue.SetMapValue(urlpath, false)
+		}
 
 		// close response body
 		resp.Body.Close()
@@ -156,6 +172,28 @@ func (c *Crawler) Crawl(clientTimeout time.Duration) {
 		// reset startTime
 		startTime = time.Now()
 	}
+}
+
+// savePageContent saves URL response body to models
+func (c *Crawler) savePageContent(urlpath string, resp *http.Response) error {
+	uModel, err := c.Models.URLs.GetByURL(urlpath)
+	if err != nil {
+		return fmt.Errorf("%s: could not get URL from model: %v", c.Name, err)
+	}
+	urlContent, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("%s: could not read response body: %v", c.Name, err)
+	}
+	newPage := models.NewPage(uModel.ID, string(urlContent))
+	if err = c.Models.Pages.Insert(newPage); err != nil {
+		return fmt.Errorf("%s: could not insert page into model: %v", c.Name, err)
+	}
+	uModel.LastChecked = time.Now()
+	uModel.LastSaved = time.Now()
+	if err = c.Models.URLs.Update(uModel); err != nil {
+		return fmt.Errorf("%s: could not update URL model: %v", c.Name, err)
+	}
+	return nil
 }
 
 // fetchEmbeddedURLs will fetch all values in href attribute of <a> tag
@@ -170,7 +208,7 @@ func (c *Crawler) fetchEmbeddedURLs(resp *http.Response) ([]string, error) {
 	doc.Find("a").Each(func(i int, s *goquery.Selection) {
 		if href, found := s.Attr("href"); found {
 			// if href is not absolute add BaseURL to href
-			if !isAbsoluteURL(href) {
+			if !internal.IsAbsoluteURL(href) {
 				c.Log.Printf("%s: converted relative url to absolute : %s", c.Name, href)
 				href = c.BaseURL.String() + href
 			}
@@ -212,13 +250,14 @@ func (c *Crawler) isValidURL(href string) bool {
 	}
 
 	// valid scheme: HTTP/HTTPS
-	if !isValidScheme(parsedURL.Scheme) {
+	if !internal.IsValidScheme(parsedURL.Scheme) {
 		return false
 	}
 
 	return true
 }
 
+// isMarkedURL checks whether the href should be processed
 func (c *Crawler) isMarkedURL(href string) bool {
 	for _, mUrl := range c.MarkedURLs {
 		if strings.Contains(href, mUrl) {
@@ -226,21 +265,4 @@ func (c *Crawler) isMarkedURL(href string) bool {
 		}
 	}
 	return false
-}
-
-// isAbsoluteURL checks if href is absolute URL
-//
-// e.g.
-//
-// <http/https>://google.com/query -> true
-//
-// /query -> false
-func isAbsoluteURL(href string) bool {
-	parsed, err := url.Parse(href)
-	return err == nil && (parsed.Scheme != "" && parsed.Host != "")
-}
-
-// isValidScheme tells if the scheme is valid
-func isValidScheme(scheme string) bool {
-	return internal.ValuePresent(scheme, []string{"http", "https"})
 }
