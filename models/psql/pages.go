@@ -18,6 +18,7 @@ type pageDB struct {
 	DB *sql.DB
 }
 
+// newPageDB returns *pageDB which implements PageModel interface
 func newPageDB(db *sql.DB) *pageDB {
 	return &pageDB{
 		DB: db,

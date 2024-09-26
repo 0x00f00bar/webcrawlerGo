@@ -17,6 +17,7 @@ type urlDB struct {
 	DB *sql.DB
 }
 
+// newUrlDB returns *urlDB which implements URLModel interface
 func newUrlDB(db *sql.DB) *urlDB {
 	return &urlDB{
 		DB: db,

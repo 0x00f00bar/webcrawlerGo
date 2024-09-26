@@ -9,6 +9,7 @@ type PsqlDB struct {
 	PageModel *pageDB
 }
 
+// NewPsqlDB returns new instance of PostgreSQL with URL and Pages models
 func NewPsqlDB(db *sql.DB) *PsqlDB {
 	return &PsqlDB{
 		URLModel:  newUrlDB(db),
