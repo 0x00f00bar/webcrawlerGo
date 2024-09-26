@@ -44,6 +44,7 @@ func NewCrawler(
 	q *queue.UniqueQueue,
 	m *models.Models,
 	baseURI *url.URL,
+	markedURLs []string,
 	logger *log.Logger,
 	idleTimeout time.Duration,
 ) (*Crawler, error) {
@@ -74,8 +75,9 @@ func NewCrawler(
 		Name:        name,
 		Queue:       q,
 		Models:      m,
-		IdleTimeout: idleTimeout,
 		BaseURL:     baseURI,
+		MarkedURLs:  markedURLs,
+		IdleTimeout: idleTimeout,
 		Log:         logger,
 	}
 	return c, nil
