@@ -21,7 +21,11 @@ func validateFlags(args *cmdFlags) error {
 	v.Check(internal.IsValidScheme(parsedURL.Scheme), "baseurl", "scheme must be http/https")
 
 	// validate crawler
-	v.Check(args.nCrawlers >= 1, "n", fmt.Sprintf("how do you crawl with %d crawlers?", args.nCrawlers))
+	v.Check(
+		args.nCrawlers >= 1,
+		"n",
+		fmt.Sprintf("how do you crawl with %d crawlers?", args.nCrawlers),
+	)
 
 	// validate db-dsn
 	v.Check(args.dbDSN != "", "db-dsn", "must be provided")

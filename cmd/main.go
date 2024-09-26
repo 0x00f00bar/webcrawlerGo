@@ -14,20 +14,21 @@ import (
 
 	_ "github.com/lib/pq"
 
-	webcrawler "github.com/0x00f00bar/web-crawler"
 	"github.com/0x00f00bar/web-crawler/models"
 	"github.com/0x00f00bar/web-crawler/models/psql"
 	"github.com/0x00f00bar/web-crawler/queue"
 )
 
-var version = "0.1.0"
-var banner = `
+var (
+	version = "0.1.0"
+	banner  = `
                             __         
   ______________ __      __/ /__  _____
  / ___/ ___/ __ '/ | /| / / / _ \/ ___/
 / /__/ /  / /_/ /| |/ |/ / /  __/ /    
 \___/_/   \__,_/ |__/|__/_/\___/_/     
                                        `
+)
 
 type cmdFlags struct {
 	nCrawlers      uint
@@ -46,9 +47,17 @@ func main() {
 	nCrawlers := flag.Uint("n", 10, "Number of crawlers to invoke")
 	baseURL := flag.String("baseurl", "", "Base URL to crawl (required)")
 	dbDSN := flag.String("db-dsn", "", "PostgreSQL DSN")
-	updateDaysPast := flag.Uint("days", 1, "Days past which monitored URLs in models should be updated")
-	markedURLs := flag.String("murls", "",
-		"Comma seperated string of marked page paths to save/update in model\nWhen empty, crawler will update URLs set as monitored in model")
+	updateDaysPast := flag.Uint(
+		"days",
+		1,
+		"Days past which monitored URLs in models should be updated",
+	)
+	markedURLs := flag.String(
+		"murls",
+		"",
+		`Comma seperated string of marked page paths to save/update in model
+When empty, crawler will update URLs set as monitored in model`,
+	)
 
 	flag.Parse()
 
@@ -83,11 +92,17 @@ func main() {
 	fmt.Printf("%-16s: %d\n"+Reset, "Crawlers count", *nCrawlers)
 
 	if len(*markedURLs) < 1 {
-		fmt.Println(Yellow + "WARNING: Marked URLs list is empty. Crawlers will update URLs only from DB which are set for monitoring." + Reset)
+		fmt.Println(
+			Yellow + "WARNING: Marked URLs list is empty. Crawlers will update URLs only from DB which are set for monitoring." + Reset,
+		)
 	}
 
 	// init file and os.Stdout logger
-	logFileName := fmt.Sprintf("./%s/logfile-%s.log", logFolderName, time.Now().Format("02-01-2006-15-04-05"))
+	logFileName := fmt.Sprintf(
+		"./%s/logfile-%s.log",
+		logFolderName,
+		time.Now().Format("02-01-2006-15-04-05"),
+	)
 	f, err := os.OpenFile(logFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
@@ -101,8 +116,9 @@ func main() {
 	if err != nil {
 		logger.Fatalf("could not parse base URL: %s", *baseURL)
 	}
+	fmt.Println(parsedBaseURL)
 
-	// xx push base url in queue
+	// push base url in queue
 	q := queue.NewQueue()
 	q.Push(*baseURL)
 
@@ -113,12 +129,25 @@ func main() {
 	}
 	defer db.Close()
 
-	var m *models.Models
+	var m models.Models
 	psqlModels := psql.NewPsqlDB(db)
 	m.URLs = psqlModels.URLModel
-	m.Pages = psqlModels.PageModel
+	// m.Pages = psqlModels.PageModel
+	t := time.Now()
+	urlMod := models.NewURL("https://bankofbaroda.in/personal-banking/books", t, t, false)
+	err = m.URLs.Insert(urlMod)
+	if err != nil {
+		fmt.Println(err)
+	}
+	dburls, err := m.URLs.GetAll("is_monitored")
+	if err != nil {
+		fmt.Println(err)
+	}
+	for _, ur := range dburls {
+		fmt.Println(*ur)
+	}
 
-	webcrawler.NewCrawler()
+	// webcrawler.NewCrawler()
 	// if is monitored true in db, set them as true, others false to not process
 	// init waitgroup
 	// init n crawlers
@@ -143,7 +172,6 @@ func main() {
 	// }
 
 	// on load validate URL: not empty, of the base domain
-
 }
 
 func openDB(dsn string) (*sql.DB, error) {

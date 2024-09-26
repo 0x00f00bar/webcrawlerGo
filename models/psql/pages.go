@@ -10,8 +10,10 @@ import (
 	"github.com/0x00f00bar/web-crawler/models"
 )
 
-var validPageColumns = []string{"id", "url_id", "added_at", "content"}
-var defaultTimeout = 5 * time.Second
+var (
+	validPageColumns = []string{"id", "url_id", "added_at", "content"}
+	defaultTimeout   = 5 * time.Second
+)
 
 // pageDB is used to implement PageModel interface
 type pageDB struct {
@@ -27,7 +29,6 @@ func newPageDB(db *sql.DB) *pageDB {
 
 // GetById fetches a row from pages table by id
 func (p pageDB) GetById(id int) (*models.Page, error) {
-
 	if id < 1 {
 		return nil, models.ErrRecordNotFound
 	}
@@ -48,7 +49,6 @@ func (p pageDB) GetById(id int) (*models.Page, error) {
 		&page.AddedAt,
 		&page.Content,
 	)
-
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -64,7 +64,6 @@ func (p pageDB) GetById(id int) (*models.Page, error) {
 // GetAllByURL fetches a row from pages table by urlId
 // and order by orderBy
 func (p pageDB) GetAllByURL(urlID uint, orderBy string) ([]*models.Page, error) {
-
 	if urlID < 1 {
 		return nil, models.ErrRecordNotFound
 	}
@@ -93,7 +92,7 @@ func (p pageDB) GetAllByURL(urlID uint, orderBy string) ([]*models.Page, error) 
 	for rows.Next() {
 		var page models.Page
 
-		err := rows.Scan(
+		err = rows.Scan(
 			&page.ID,
 			&page.URLID,
 			&page.AddedAt,

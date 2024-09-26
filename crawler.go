@@ -18,10 +18,9 @@ import (
 	"github.com/0x00f00bar/web-crawler/queue"
 )
 
-var (
-	defaultSleepDuration = 500 * time.Microsecond
-	// defaultIdleTimeout   = 10 * time.Second
-)
+var defaultSleepDuration = 500 * time.Microsecond
+
+// defaultIdleTimeout   = 10 * time.Second
 
 // Crawler crawls the URL fetched from Queue and saves
 // the contents to Models.
@@ -132,7 +131,12 @@ func (c *Crawler) Crawl(clientTimeout time.Duration) {
 		// if OK fetch all urls embedded in the page
 		urls, err := c.fetchEmbeddedURLs(resp)
 		if err != nil {
-			c.Log.Printf("%s: failed to fetch embedded URLs for URL '%s' : %v", c.Name, urlpath, err)
+			c.Log.Printf(
+				"%s: failed to fetch embedded URLs for URL '%s' : %v",
+				c.Name,
+				urlpath,
+				err,
+			)
 			continue
 		}
 

@@ -9,8 +9,10 @@ import (
 	"github.com/0x00f00bar/web-crawler/models"
 )
 
-var validURLColumns = []string{"id", "url", "first_encountered", "last_checked",
-	"last_saved", "is_monitored", "version"}
+var validURLColumns = []string{
+	"id", "url", "first_encountered", "last_checked",
+	"last_saved", "is_monitored", "version",
+}
 
 // urlDB is used to implement URLModel interface
 type urlDB struct {
@@ -26,7 +28,6 @@ func newUrlDB(db *sql.DB) *urlDB {
 
 // GetById fetches a row from urls table by id
 func (u urlDB) GetById(id int) (*models.URL, error) {
-
 	if id < 1 {
 		return nil, models.ErrRecordNotFound
 	}
@@ -49,7 +50,6 @@ func (u urlDB) GetById(id int) (*models.URL, error) {
 		&url.IsMonitored,
 		&url.Version,
 	)
-
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -85,7 +85,6 @@ func (u urlDB) GetByURL(urlStr string) (*models.URL, error) {
 		&url.IsMonitored,
 		&url.Version,
 	)
-
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -171,7 +170,6 @@ func (u urlDB) Delete(id int) error {
 
 // GetAll fetches all rows from urls table in orderBy order
 func (u urlDB) GetAll(orderBy string) ([]*models.URL, error) {
-
 	if !models.ValidOrderBy(orderBy, validURLColumns) {
 		return nil, fmt.Errorf("%w : %s", models.ErrInvalidOrderBy, orderBy)
 	}
@@ -196,7 +194,7 @@ func (u urlDB) GetAll(orderBy string) ([]*models.URL, error) {
 
 		var url models.URL
 
-		err := rows.Scan(
+		err = rows.Scan(
 			&url.ID,
 			&url.URL,
 			&url.FirstEncountered,
@@ -220,7 +218,6 @@ func (u urlDB) GetAll(orderBy string) ([]*models.URL, error) {
 
 // GetAll fetches all rows where is_monitored is true from urls table in orderBy order
 func (u urlDB) GetAllMonitored(orderBy string) ([]*models.URL, error) {
-
 	if !models.ValidOrderBy(orderBy, validURLColumns) {
 		return nil, fmt.Errorf("%w : %s", models.ErrInvalidOrderBy, orderBy)
 	}
@@ -246,7 +243,7 @@ func (u urlDB) GetAllMonitored(orderBy string) ([]*models.URL, error) {
 
 		var url models.URL
 
-		err := rows.Scan(
+		err = rows.Scan(
 			&url.ID,
 			&url.URL,
 			&url.FirstEncountered,
