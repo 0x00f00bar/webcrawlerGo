@@ -162,7 +162,7 @@ func (c *Crawler) Crawl(clientTimeout time.Duration) {
 				c.Log.Fatal(err)
 			}
 
-			// set key value to false as url is not processed
+			// set key value to false as url is now processed
 			c.Queue.SetMapValue(urlpath, false)
 		}
 

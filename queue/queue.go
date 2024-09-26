@@ -10,7 +10,7 @@ var (
 	ErrItemNotFound = errors.New("item never pushed to queue")
 )
 
-// bool in map represents whether the item was processed
+// bool in map represents whether the item should be processed
 // and the presence of item in map represents that a crawler have seen this URL before
 // i.e. the URL is not unique
 
