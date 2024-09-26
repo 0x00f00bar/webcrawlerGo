@@ -1,5 +1,7 @@
 TODO
 
-- [ ] Add timeout in DB query
+- [x] Add timeout in DB query
 - [ ] strip trailing / in Base URL arg before init new crawler, add leading / if not present in marked Urls
-- [ ] Add index to DB
+- [x] Add index to DB
+- [ ] modify db connection settings: max/min connections, etc
+- [ ] There might be a case when the marked url is different from url fetched from db, and db entry isMonitored is set to true, decide what2do
