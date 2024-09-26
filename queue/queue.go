@@ -79,19 +79,21 @@ func (q *UniqueQueue) SetMapValue(key string, value bool) {
 }
 
 // Push appends item to the queue after checking that item was
-// never seen before by the queue.
+// never seen before by the queue. Returns true if item was added to the queue.
 //
 // NOP when item was seen earlier in queue's lifetime.
 // Default item value is 'false'.
 //
 // Thread safe.
-func (q *UniqueQueue) Push(item string) {
+func (q *UniqueQueue) Push(item string) (success bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if q.FirstEncounter(item) {
 		q.strMap[item] = false
 		q.queue = append(q.queue, item)
+		success = true
 	}
+	return
 }
 
 // PushForce appends item to the queue WITHOUT checking that the item was seen before.
