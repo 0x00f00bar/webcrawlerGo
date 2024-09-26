@@ -39,13 +39,14 @@ func (q *UniqueQueue) IsEmpty() bool {
 	return q.Size() == 0
 }
 
-// FirstEncounter checks if the item was ever pushed to the queue
-// by checking the map
+// FirstEncounter returns true if the item was seen for the first time by the queue in its lifetime
 func (q *UniqueQueue) FirstEncounter(item string) bool {
 	if _, ok := q.strMap[item]; ok {
-		return true
+		// if item present in map return false, item seen before
+		return false
 	}
-	return false
+	// new item return true
+	return true
 }
 
 // GetMapValue returns value of key inside the map used by
@@ -77,22 +78,23 @@ func (q *UniqueQueue) SetMapValue(key string, value bool) {
 	q.strMap[key] = value
 }
 
-// Push appends item to the queue after checking that item isn't present.
+// Push appends item to the queue after checking that item was
+// never seen before by the queue.
 //
-// NOP when item is present.
+// NOP when item was seen earlier in queue's lifetime.
 // Default item value is 'false'.
 //
 // Thread safe.
 func (q *UniqueQueue) Push(item string) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	if !q.FirstEncounter(item) {
+	if q.FirstEncounter(item) {
 		q.strMap[item] = false
 		q.queue = append(q.queue, item)
 	}
 }
 
-// PushForce appends item to the queue WITHOUT checking that item isn't present.
+// PushForce appends item to the queue WITHOUT checking that the item was seen before.
 // Useful when item was not processed successfully and needs to be reprocessed.
 //
 // Default item value is 'false'.
