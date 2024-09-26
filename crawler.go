@@ -32,7 +32,7 @@ type Crawler struct {
 	Name        string
 	Queue       *queue.UniqueQueue
 	Models      *models.Models
-	BaseURL     *url.URL // base URI
+	BaseURL     *url.URL
 	MarkedURLs  []string
 	IdleTimeout time.Duration
 	Log         *log.Logger
@@ -43,7 +43,7 @@ func NewCrawler(
 	name string,
 	q *queue.UniqueQueue,
 	m *models.Models,
-	baseURI *url.URL,
+	baseURL *url.URL,
 	markedURLs []string,
 	logger *log.Logger,
 	idleTimeout time.Duration,
@@ -56,15 +56,15 @@ func NewCrawler(
 		return nil, errors.New("crawler: models cannot be nil")
 	}
 
-	if !internal.IsValidScheme(baseURI.Scheme) {
+	if !internal.IsValidScheme(baseURL.Scheme) {
 		return nil, fmt.Errorf(
 			"crawler: invalid scheme '%s'. Supported schemes: HTTP, HTTPS",
-			baseURI.Scheme,
+			baseURL.Scheme,
 		)
 	}
 
-	if !internal.IsAbsoluteURL(baseURI.String()) {
-		return nil, errors.New("crawler: Base URI should be absolute")
+	if !internal.IsAbsoluteURL(baseURL.String()) {
+		return nil, errors.New("crawler: Base URL should be absolute")
 	}
 
 	if logger == nil {
@@ -75,7 +75,7 @@ func NewCrawler(
 		Name:        name,
 		Queue:       q,
 		Models:      m,
-		BaseURL:     baseURI,
+		BaseURL:     baseURL,
 		MarkedURLs:  markedURLs,
 		IdleTimeout: idleTimeout,
 		Log:         logger,
@@ -152,13 +152,13 @@ func (c *Crawler) Crawl(clientTimeout time.Duration) {
 			}
 		}
 
-		urlProcessed, err := c.Queue.GetMapValue(urlpath)
+		saveURLContent, err := c.Queue.GetMapValue(urlpath)
 		if errors.Is(err, queue.ErrItemNotFound) {
-			c.Log.Fatalf("%s: URL not found in queue '%s'. Quitting.", c.Name, urlpath)
+			c.Log.Fatalf("%s: URL not found in queue map '%s'. Quitting.", c.Name, urlpath)
 		}
 
-		// if current url is to be monitored/saved, save content to DB and update url
-		if c.isMarkedURL(urlpath) && !urlProcessed {
+		// if current url is to be monitored OR marked, save content to DB and update url
+		if c.isMarkedURL(urlpath) || saveURLContent {
 			err = c.savePageContent(urlpath, resp)
 			if err != nil {
 				c.Log.Fatal(err)
@@ -229,7 +229,7 @@ func (c *Crawler) fetchEmbeddedURLs(resp *http.Response) ([]string, error) {
 	validateURL checks if the URL is valid
 
 Rules:
-  - Have base URI if absolute URL
+  - Have base URL if absolute URL
   - Is not empty
   - Scheme is either HTTP/HTTPS
 */
@@ -262,7 +262,7 @@ func (c *Crawler) isValidURL(href string) bool {
 // isMarkedURL checks whether the href should be processed
 func (c *Crawler) isMarkedURL(href string) bool {
 	for _, mUrl := range c.MarkedURLs {
-		if strings.Contains(href, mUrl) {
+		if mUrl != "" && strings.Contains(href, mUrl) {
 			return true
 		}
 	}
