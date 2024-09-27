@@ -2,6 +2,7 @@ package queue
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 )
 
@@ -27,6 +28,14 @@ func NewQueue() *UniqueQueue {
 		strMap: map[string]bool{},
 		mu:     sync.Mutex{},
 	}
+}
+
+// View the first n items of the queue
+func (q *UniqueQueue) View(n int) string {
+	if len(q.queue) >= n {
+		return fmt.Sprint(q.queue[:n])
+	}
+	return "n is greater than length of queue"
 }
 
 // Size returns the size of queue
