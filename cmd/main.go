@@ -1,19 +1,18 @@
 package main
 
 import (
-	"context"
-	"database/sql"
 	"flag"
 	"fmt"
-	"io"
-	"log"
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	_ "github.com/lib/pq"
 
+	webcrawler "github.com/0x00f00bar/web-crawler"
+	"github.com/0x00f00bar/web-crawler/internal"
 	"github.com/0x00f00bar/web-crawler/models"
 	"github.com/0x00f00bar/web-crawler/models/psql"
 	"github.com/0x00f00bar/web-crawler/queue"
@@ -28,14 +27,18 @@ var (
 / /__/ /  / /_/ /| |/ |/ / /  __/ /    
 \___/_/   \__,_/ |__/|__/_/\___/_/     
                                        `
+
+	httpClientTimeout = 5 * time.Second
 )
 
 type cmdFlags struct {
-	nCrawlers      uint
-	baseURL        string
-	updateDaysPast uint
-	markedURLs     string
-	dbDSN          string
+	nCrawlers      *int
+	baseURL        *url.URL
+	updateDaysPast *int
+	markedURLs     []string
+	dbDSN          *string
+	reqDelay       time.Duration
+	idleTimeout    time.Duration
 }
 
 func main() {
@@ -44,10 +47,12 @@ func main() {
 	fmt.Printf(Cyan+"v%s\n\n"+Reset, version)
 
 	printVersion := flag.Bool("v", false, "Display app version")
-	nCrawlers := flag.Uint("n", 10, "Number of crawlers to invoke")
+	nCrawlers := flag.Int("n", 10, "Number of crawlers to invoke")
+	idleTimeout := flag.String("idle-time", "10s", "Idle time after which crawler quits when queue is empty. Min: 1s")
 	baseURL := flag.String("baseurl", "", "Base URL to crawl (required)")
-	dbDSN := flag.String("db-dsn", "", "PostgreSQL DSN")
-	updateDaysPast := flag.Uint(
+	reqDelay := flag.String("req-delay", "50ms", "Delay between subsequent requests. Min: 1ms")
+	dbDSN := flag.String("db-dsn", "", "PostgreSQL DSN (required)")
+	updateDaysPast := flag.Int(
 		"days",
 		1,
 		"Days past which monitored URLs in models should be updated",
@@ -55,8 +60,8 @@ func main() {
 	markedURLs := flag.String(
 		"murls",
 		"",
-		`Comma seperated string of marked page paths to save/update in model
-When empty, crawler will update URLs set as monitored in model`,
+		`Comma ',' seperated string of marked page paths to save/update.
+When empty, crawler will update monitored URLs from the model.`,
 	)
 
 	flag.Parse()
@@ -66,126 +71,123 @@ When empty, crawler will update URLs set as monitored in model`,
 		os.Exit(0)
 	}
 
-	// trim whitespace and drop '/'
+	// trim whitespace and drop trailing '/'
 	*baseURL = strings.TrimSpace(*baseURL)
 	*baseURL = strings.TrimRight(*baseURL, "/")
 
-	cmdArgs := cmdFlags{
-		nCrawlers:      *nCrawlers,
-		baseURL:        *baseURL,
-		updateDaysPast: *updateDaysPast,
-		markedURLs:     *markedURLs,
-		dbDSN:          *dbDSN,
+	v := internal.NewValidator()
+
+	parsedBaseURL, err := url.Parse(*baseURL)
+	if err != nil {
+		fmt.Printf("could not parse base URL: %s\n", *baseURL)
+		os.Exit(1)
 	}
 
-	err := validateFlags(&cmdArgs)
+	markedURLSlice := getMarkedURLS(*markedURLs)
+
+	// validate request delay and idle-time
+	pRequestDelay, err := time.ParseDuration(*reqDelay)
 	if err != nil {
+		v.AddError("req-delay", err.Error())
+	}
+	pIdleTime, err := time.ParseDuration(*idleTimeout)
+	if err != nil {
+		v.AddError("idle-time", err.Error())
+	}
+
+	cmdArgs := cmdFlags{
+		nCrawlers:      nCrawlers,
+		baseURL:        parsedBaseURL,
+		updateDaysPast: updateDaysPast,
+		markedURLs:     markedURLSlice,
+		dbDSN:          dbDSN,
+		reqDelay:       pRequestDelay,
+		idleTimeout:    pIdleTime,
+	}
+
+	validateFlags(v, &cmdArgs)
+	if !v.Valid() {
+		fmt.Fprintf(os.Stderr, "Invalid flag values:\n")
+		for k, v := range v.Errors {
+			fmt.Fprintf(os.Stderr, "%-9s : %s\n", k, v)
+		}
 		fmt.Println("")
 		flag.Usage()
-		log.Fatalf("error: %v", err)
+		os.Exit(1)
 	}
 
 	fmt.Println(Red + "Flags parsed:" + Reset)
-	fmt.Printf(Cyan+"%-16s: %s\n", "Base URL", *baseURL)
-	fmt.Printf("%-16s: %d day(s)\n", "Update interval", *updateDaysPast)
-	fmt.Printf("%-16s: %s\n", "Marked URL(s)", *markedURLs)
-	fmt.Printf("%-16s: %d\n"+Reset, "Crawlers count", *nCrawlers)
+	fmt.Printf(Cyan+"%-16s: %s\n", "Base URL", cmdArgs.baseURL.String())
+	fmt.Printf("%-16s: %d day(s)\n", "Update interval", *cmdArgs.updateDaysPast)
+	fmt.Printf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " "))
+	fmt.Printf("%-16s: %d\n", "Crawlers count", *cmdArgs.nCrawlers)
+	fmt.Printf("%-16s: %s\n", "Idle time", cmdArgs.idleTimeout)
+	fmt.Printf("%-16s: %s\n"+Reset, "Request delay", cmdArgs.reqDelay)
 
-	if len(*markedURLs) < 1 {
+	if len(cmdArgs.markedURLs) < 1 {
 		fmt.Println(
-			Yellow + "WARNING: Marked URLs list is empty. Crawlers will update URLs only from DB which are set for monitoring." + Reset,
+			Yellow + "WARNING: Marked URLs list is empty. Crawlers will update URLs only from model which are set for monitoring." + Reset,
 		)
 	}
 
 	// init file and os.Stdout logger
-	logFileName := fmt.Sprintf(
-		"./%s/logfile-%s.log",
-		logFolderName,
-		time.Now().Format("02-01-2006-15-04-05"),
-	)
-	f, err := os.OpenFile(logFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		panic(err)
-	}
+	f, logger := initialiseLogger()
 	defer f.Close()
-	logger := log.New(io.MultiWriter(os.Stdout, f), "crawler: ", log.LstdFlags)
 
-	logger.Println("LOLX")
-
-	parsedBaseURL, err := url.Parse(*baseURL)
-	if err != nil {
-		logger.Fatalf("could not parse base URL: %s", *baseURL)
-	}
-	fmt.Println(parsedBaseURL)
-
-	// push base url in queue
+	// init queue & push base url
 	q := queue.NewQueue()
-	q.Push(*baseURL)
+	q.Push(cmdArgs.baseURL.String())
+	// fmt.Println(q.View(q.Size()))
 
-	// get all urls from db, put all in queue
-	db, err := openDB(*dbDSN)
+	// init and test db
+	db, err := openDB(*cmdArgs.dbDSN)
 	if err != nil {
-		logger.Fatal(err)
+		logger.Fatalln(err)
 	}
+	logger.Println("DB connection OK.")
 	defer db.Close()
 
+	// init models
 	var m models.Models
 	psqlModels := psql.NewPsqlDB(db)
 	m.URLs = psqlModels.URLModel
-	// m.Pages = psqlModels.PageModel
-	t := time.Now()
-	urlMod := models.NewURL("https://bankofbaroda.in/personal-banking/books", t, t, false)
-	err = m.URLs.Insert(urlMod)
-	if err != nil {
-		fmt.Println(err)
-	}
-	dburls, err := m.URLs.GetAll("is_monitored")
-	if err != nil {
-		fmt.Println(err)
-	}
-	for _, ur := range dburls {
-		fmt.Println(*ur)
+	m.Pages = psqlModels.PageModel
+
+	// get all urls from db, put all in queue's map
+	loadedURLs := loadUrlsToQueue(q, &m, *cmdArgs.updateDaysPast)
+	logger.Printf("Loaded %d URLs from model\n", loadedURLs)
+
+	crawlerCfg := &webcrawler.CrawlerConfig{
+		Queue:        q,
+		Models:       &m,
+		BaseURL:      cmdArgs.baseURL,
+		MarkedURLs:   cmdArgs.markedURLs,
+		RequestDelay: cmdArgs.reqDelay,
+		IdleTimeout:  cmdArgs.idleTimeout,
+		Log:          logger,
 	}
 
-	// webcrawler.NewCrawler()
-	// if is monitored true in db, set them as true, others false to not process
 	// init waitgroup
+	var wg sync.WaitGroup
+
 	// init n crawlers
+	crawlerArmy, err := webcrawler.NNewCrawlers(int(*cmdArgs.nCrawlers), "crawler", crawlerCfg)
+	if err != nil {
+		logger.Fatalln(err)
+	}
+
+	for _, crawler := range crawlerArmy {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+			crawler.Crawl(httpClientTimeout)
+		}()
+
+	}
+
 	// wait for crawlers
-
-	// client := &http.Client{
-	// 	Timeout: 5 * time.Second,
-	// }
-
-	// resp, err := getURL(prodURL, client)
-	// if err != nil {
-	// 	log.Fatalln(err)
-	// }
-
-	// defer resp.Body.Close()
-	// // body, err := io.ReadAll(resp.Body)
-	// // if err != nil {
-	// // 	log.Fatalln(err)
-	// // }
-	// for k, v := range resp.Header {
-	// 	fmt.Println(k, v)
-	// }
-
-	// on load validate URL: not empty, of the base domain
-}
-
-func openDB(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err = db.PingContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return db, nil
+	wg.Wait()
+	logger.Println("Done")
+	fmt.Print(Red, "Done", Reset, "\n")
 }

@@ -87,7 +87,7 @@ func getMarkedURLS(cmdArg string) []string {
 }
 
 // loadUrlsToQueue fetches all urls from URL model and loads them to queue
-func loadUrlsToQueue(q *queue.UniqueQueue, m *models.Models, updateInterval uint) int {
+func loadUrlsToQueue(q *queue.UniqueQueue, m *models.Models, updateInterval int) int {
 	dburls, err := m.URLs.GetAll("is_monitored")
 	if err != nil {
 		fmt.Println(err)

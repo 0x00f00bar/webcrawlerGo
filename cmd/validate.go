@@ -2,41 +2,36 @@ package main
 
 import (
 	"fmt"
-	"net/url"
-	"os"
+	"time"
 
 	"github.com/0x00f00bar/web-crawler/internal"
 )
 
-func validateFlags(args *cmdFlags) error {
-	v := internal.NewValidator()
+func validateFlags(v *internal.Validator, args *cmdFlags) {
 
 	// validate baseurl
-	v.Check(args.baseURL != "", "baseurl", "must be provided")
-	v.Check(internal.IsAbsoluteURL(args.baseURL), "baseurl", "must be absolute URL")
-	parsedURL, err := url.Parse(args.baseURL)
-	if err != nil {
-		return err
-	}
-	v.Check(internal.IsValidScheme(parsedURL.Scheme), "baseurl", "scheme must be http/https")
+	v.Check(args.baseURL.String() != "", "baseurl", "must be provided")
+	v.Check(internal.IsAbsoluteURL(args.baseURL.String()), "baseurl", "must be absolute URL")
+	v.Check(internal.IsValidScheme(args.baseURL.Scheme), "baseurl", "scheme must be http/https")
 
 	// validate crawler
 	v.Check(
-		args.nCrawlers >= 1,
+		*args.nCrawlers >= 1,
 		"n",
-		fmt.Sprintf("how do you crawl with %d crawlers?", args.nCrawlers),
+		fmt.Sprintf("how do you crawl with %d crawlers?", *args.nCrawlers),
+	)
+
+	// validate update days past
+	v.Check(
+		*args.updateDaysPast >= 0,
+		"days",
+		fmt.Sprintf("invalid update interval: %d", *args.updateDaysPast),
 	)
 
 	// validate db-dsn
-	v.Check(args.dbDSN != "", "db-dsn", "must be provided")
+	v.Check(*args.dbDSN != "", "db-dsn", "must be provided")
 
-	if !v.Valid() {
-		fmt.Fprintf(os.Stderr, "Invalid flag values:\n")
-		for k, v := range v.Errors {
-			fmt.Fprintf(os.Stderr, "%-7s : %s\n", k, v)
-		}
-		return fmt.Errorf("invalid flag values")
-	}
-
-	return nil
+	// validate request delay & idle-time
+	v.Check(args.reqDelay >= time.Microsecond, "req-delay", "cannot be less than 1ms")
+	v.Check(args.idleTimeout >= time.Second, "idle-time", "cannot be less than 1s")
 }
