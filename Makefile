@@ -3,7 +3,7 @@ include .env
 # export $(shell sed 's/=.*//' .env)
 run:
 	@echo "Executing go run ..."
-	@go run cmd/*
+	@go run cmd/* -baseurl=$(BASEURL) -db-dsn="$(DB_DSN)"
 
 migrate-up:
 	@echo "Migrating up ..."
