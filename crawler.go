@@ -25,61 +25,82 @@ var defaultSleepDuration = 500 * time.Microsecond
 // Crawler crawls the URL fetched from Queue and saves
 // the contents to Models.
 //
-// Crawler will quit after IdleTimeout when no item received
-// from queue
+// Crawler will quit after IdleTimeout when queue is empty
 type Crawler struct {
-	Name        string
-	Queue       *queue.UniqueQueue
-	Models      *models.Models
-	BaseURL     *url.URL
-	MarkedURLs  []string
-	IdleTimeout time.Duration
-	Log         *log.Logger
+	Name string // Name of crawler for easy identification
+	*CrawlerConfig
+}
+
+// CrawlerConfig to configure a crawler
+type CrawlerConfig struct {
+	Queue        *queue.UniqueQueue // global queue
+	Models       *models.Models     // models to use
+	BaseURL      *url.URL           // base URL to crawl
+	MarkedURLs   []string           // marked URL to save to model
+	RequestDelay time.Duration      // delay between subsequent requests
+	IdleTimeout  time.Duration      // timeout after which crawler quits when queue is empty
+	Log          *log.Logger        // logger to use
 }
 
 // NewCrawler return pointer to a new Crawler
-func NewCrawler(
-	name string,
-	q *queue.UniqueQueue,
-	m *models.Models,
-	baseURL *url.URL,
-	markedURLs []string,
-	logger *log.Logger,
-	idleTimeout time.Duration,
-) (*Crawler, error) {
-	if q == nil {
-		return nil, errors.New("crawler: queue cannot be nil")
+func NewCrawler(name string, cfg *CrawlerConfig) (*Crawler, error) {
+	err := verifyConfig(cfg)
+	if err != nil {
+		return nil, err
 	}
 
-	if m == nil {
-		return nil, errors.New("crawler: models cannot be nil")
+	return &Crawler{name, cfg}, nil
+}
+
+// NNewCrawlers returns N new Crawlers configured with cfg.
+// Crawlers will be named with namePrefix.
+func NNewCrawlers(n int, namePrefix string, cfg *CrawlerConfig) ([]*Crawler, error) {
+	if n < 1 {
+		return nil, fmt.Errorf("too few crawlers")
 	}
 
-	if !internal.IsValidScheme(baseURL.Scheme) {
-		return nil, fmt.Errorf(
+	err := verifyConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	var crawlers []*Crawler
+
+	for i := range n {
+		name := fmt.Sprintf("%s#%03d", namePrefix, i+1)
+		crawlers = append(crawlers, &Crawler{name, cfg})
+	}
+
+	return crawlers, nil
+}
+
+// verifyConfig verifies crawler config
+// if Log is nil, creates new os.Stdout default logger
+func verifyConfig(cfg *CrawlerConfig) error {
+	if cfg.Queue == nil {
+		return errors.New("crawler: queue cannot be nil")
+	}
+
+	if cfg.Models == nil {
+		return errors.New("crawler: models cannot be nil")
+	}
+
+	if !internal.IsValidScheme(cfg.BaseURL.Scheme) {
+		return fmt.Errorf(
 			"crawler: invalid scheme '%s'. Supported schemes: HTTP, HTTPS",
-			baseURL.Scheme,
+			cfg.BaseURL.Scheme,
 		)
 	}
 
-	if !internal.IsAbsoluteURL(baseURL.String()) {
-		return nil, errors.New("crawler: Base URL should be absolute")
+	if !internal.IsAbsoluteURL(cfg.BaseURL.String()) {
+		return errors.New("crawler: Base URL should be absolute")
 	}
 
-	if logger == nil {
-		logger = log.New(os.Stdout, "crawler", log.LstdFlags)
+	if cfg.Log == nil {
+		cfg.Log = log.New(os.Stdout, "crawler", log.LstdFlags)
 	}
 
-	c := &Crawler{
-		Name:        name,
-		Queue:       q,
-		Models:      m,
-		BaseURL:     baseURL,
-		MarkedURLs:  markedURLs,
-		IdleTimeout: idleTimeout,
-		Log:         logger,
-	}
-	return c, nil
+	return nil
 }
 
 // GetURL fetches first item from queue, if queue
@@ -103,7 +124,7 @@ func (c *Crawler) Crawl(clientTimeout time.Duration) {
 		// if queue is empty wait for defaultSleepDuration; retry upto idle timeout before quitting
 		if errors.Is(err, queue.ErrEmptyQueue) {
 			if time.Since(startTime) > c.IdleTimeout {
-				c.Log.Printf("%s: Queue is empty, quitting.", c.Name)
+				c.Log.Printf("%s: Queue is empty, quitting.\n", c.Name)
 				return
 			}
 			time.Sleep(defaultSleepDuration)
@@ -112,7 +133,7 @@ func (c *Crawler) Crawl(clientTimeout time.Duration) {
 
 		resp, err := getURL(urlpath, client)
 		if err != nil {
-			c.Log.Printf("%s: error in GET request: %v", c.Name, err)
+			c.Log.Printf("%s: error in GET request: %v\n", c.Name, err)
 			// and add the url back to queue
 			c.Queue.PushForce(urlpath)
 			continue
@@ -121,7 +142,7 @@ func (c *Crawler) Crawl(clientTimeout time.Duration) {
 		// if response not 200 OK
 		if resp.StatusCode != http.StatusOK {
 			c.Log.Printf(
-				"%s: error in GET request: HTTP status code received %d",
+				"%s: error in GET request: HTTP status code received %d\n",
 				c.Name,
 				resp.StatusCode,
 			)
@@ -132,7 +153,7 @@ func (c *Crawler) Crawl(clientTimeout time.Duration) {
 		urls, err := c.fetchEmbeddedURLs(resp)
 		if err != nil {
 			c.Log.Printf(
-				"%s: failed to fetch embedded URLs for URL '%s' : %v",
+				"%s: failed to fetch embedded URLs for URL '%s' : %v\n",
 				c.Name,
 				urlpath,
 				err,
@@ -149,6 +170,7 @@ func (c *Crawler) Crawl(clientTimeout time.Duration) {
 				u := models.NewURL(href, t, t, c.isMarkedURL(href))
 				c.Models.URLs.Insert(u)
 				c.Queue.Push(href)
+				c.Log.Printf("%s: added url '%s' to queue\n", c.Name, href)
 				// if url is marked set value to true to fetch its content
 				if u.IsMonitored {
 					c.Queue.SetMapValue(href, true)
@@ -158,15 +180,16 @@ func (c *Crawler) Crawl(clientTimeout time.Duration) {
 
 		saveURLContent, err := c.Queue.GetMapValue(urlpath)
 		if errors.Is(err, queue.ErrItemNotFound) {
-			c.Log.Fatalf("%s: URL not found in queue map '%s'. Quitting.", c.Name, urlpath)
+			c.Log.Fatalf("%s: FATAL : URL not found in queue map '%s'. Quitting.\n", c.Name, urlpath)
 		}
 
 		// if current url is to be monitored OR marked, save content to DB and update url
 		if c.isMarkedURL(urlpath) || saveURLContent {
 			err = c.savePageContent(urlpath, resp)
 			if err != nil {
-				c.Log.Fatal(err)
+				c.Log.Fatalln(err)
 			}
+			c.Log.Printf("%s: saved page '%s'\n", c.Name, urlpath)
 
 			// set key value to false as url is now processed
 			c.Queue.SetMapValue(urlpath, false)
@@ -174,6 +197,9 @@ func (c *Crawler) Crawl(clientTimeout time.Duration) {
 
 		// close response body
 		resp.Body.Close()
+
+		// take rest for RequestDelay
+		time.Sleep(c.RequestDelay)
 
 		// reset startTime
 		startTime = time.Now()
@@ -215,14 +241,13 @@ func (c *Crawler) fetchEmbeddedURLs(resp *http.Response) ([]string, error) {
 		if href, found := s.Attr("href"); found {
 			// if href is not absolute add BaseURL to href
 			if !internal.IsAbsoluteURL(href) {
-				c.Log.Printf("%s: converted relative url to absolute : %s", c.Name, href)
+				c.Log.Printf("%s: converted relative url to absolute : %s\n", c.Name, href)
 				href = c.BaseURL.String() + href
 			}
 			if c.isValidURL(href) {
-				c.Log.Printf("%s: added url '%s' to queue", c.Name, href)
 				hrefs = append(hrefs, href)
 			} else {
-				c.Log.Printf("%s: invalid url: %s", c.Name, href)
+				c.Log.Printf("%s: invalid url: %s\n", c.Name, href)
 			}
 		}
 	})
