@@ -5,3 +5,4 @@ TODO
 - [x] Add index to DB
 - [ ] modify db connection settings: max/min connections, etc
 - [ ] There might be a case when the marked url is different from url fetched from db, and db entry isMonitored is set to true, decide what2do
+- [ ] extended href validation required, way to ignore urls -> list of strings to check if present, ignore
