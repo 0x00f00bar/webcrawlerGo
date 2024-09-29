@@ -48,8 +48,16 @@ func main() {
 
 	printVersion := flag.Bool("v", false, "Display app version")
 	nCrawlers := flag.Int("n", 10, "Number of crawlers to invoke")
-	idleTimeout := flag.String("idle-time", "10s", "Idle time after which crawler quits when queue is empty. Min: 1s")
-	baseURL := flag.String("baseurl", "", "Base URL to crawl (required)")
+	idleTimeout := flag.String(
+		"idle-time",
+		"10s",
+		"Idle time after which crawler quits when queue is empty. Min: 1s",
+	)
+	baseURL := flag.String(
+		"baseurl",
+		"",
+		"Absolute base URL to crawl (required). E.g. <http/https>://<domain-name>",
+	)
 	reqDelay := flag.String("req-delay", "50ms", "Delay between subsequent requests. Min: 1ms")
 	dbDSN := flag.String("db-dsn", "", "PostgreSQL DSN (required)")
 	updateDaysPast := flag.Int(
@@ -154,7 +162,7 @@ When empty, crawler will update monitored URLs from the model.`,
 	m.Pages = psqlModels.PageModel
 
 	// get all urls from db, put all in queue's map
-	loadedURLs := loadUrlsToQueue(q, &m, *cmdArgs.updateDaysPast)
+	loadedURLs := loadUrlsToQueue(*cmdArgs.baseURL, q, &m, *cmdArgs.updateDaysPast, logger)
 	logger.Printf("Loaded %d URLs from model\n", loadedURLs)
 
 	crawlerCfg := &webcrawler.CrawlerConfig{

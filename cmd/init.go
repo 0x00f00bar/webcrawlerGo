@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -14,10 +15,14 @@ import (
 	"github.com/0x00f00bar/web-crawler/queue"
 )
 
-var logFolderName = "logs"
+var (
+	logFolderName         = "logs"
+	dbMaxConnIdleDuration = 15 * time.Minute
+	dbMaxOpenConn         = 25
+	dbMaxIdleConn         = 25
+)
 
 func init() {
-
 	// make a folder to store logs
 	if _, err := os.Stat(logFolderName); os.IsNotExist(err) {
 		err = os.Mkdir(logFolderName, 0755)
@@ -48,6 +53,15 @@ func openDB(dsn string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// setup db max connection idle time
+	db.SetConnMaxIdleTime(dbMaxConnIdleDuration)
+
+	// setup db max connections
+	db.SetMaxOpenConns(dbMaxOpenConn)
+
+	// setup db max idle connection
+	db.SetMaxIdleConns(dbMaxIdleConn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -87,7 +101,13 @@ func getMarkedURLS(cmdArg string) []string {
 }
 
 // loadUrlsToQueue fetches all urls from URL model and loads them to queue
-func loadUrlsToQueue(q *queue.UniqueQueue, m *models.Models, updateInterval int) int {
+func loadUrlsToQueue(
+	bURL url.URL,
+	q *queue.UniqueQueue,
+	m *models.Models,
+	updateInterval int,
+	logger *log.Logger,
+) int {
 	dburls, err := m.URLs.GetAll("is_monitored")
 	if err != nil {
 		fmt.Println(err)
@@ -96,10 +116,17 @@ func loadUrlsToQueue(q *queue.UniqueQueue, m *models.Models, updateInterval int)
 	currentTime := time.Now()
 	// if isMonitored true and timestamp after updateInterval in db, set them as true, others false to not process
 	for _, urlDB := range dburls {
-		q.PushForce(urlDB.URL)
-		expiryTime := urlDB.LastSaved.Add(intervalDuration)
-		if urlDB.IsMonitored && (currentTime.After(expiryTime) || currentTime.Equal(expiryTime)) {
-			q.SetMapValue(urlDB.URL, true)
+		parsedUrlDB, err := url.Parse(urlDB.URL)
+		if err != nil {
+			logger.Printf("unable to parse url '%s' from model URLs\n", urlDB.URL)
+		}
+		if parsedUrlDB.Hostname() == bURL.Hostname() {
+			q.PushForce(urlDB.URL)
+			expiryTime := urlDB.LastSaved.Add(intervalDuration)
+			if urlDB.IsMonitored &&
+				(currentTime.After(expiryTime) || currentTime.Equal(expiryTime)) {
+				q.SetMapValue(urlDB.URL, true)
+			}
 		}
 	}
 	return len(dburls)
