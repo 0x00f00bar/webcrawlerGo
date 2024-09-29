@@ -18,9 +18,10 @@ import (
 	"github.com/0x00f00bar/web-crawler/queue"
 )
 
-var defaultSleepDuration = 500 * time.Microsecond
-
-// defaultIdleTimeout   = 10 * time.Second
+var (
+	defaultSleepDuration = 500 * time.Microsecond
+	invalidHrefPrefixs   = []string{"file:", "mailto:", "tel:", "javascript:", "#", "data:"}
+)
 
 // Crawler crawls the URL fetched from Queue and saves
 // the contents to Models.
@@ -168,19 +169,27 @@ func (c *Crawler) Crawl(clientTimeout time.Duration) {
 				// and we don't want to set URL.LastSaved and URL.LastChecked right now
 				var t time.Time
 				u := models.NewURL(href, t, t, c.isMarkedURL(href))
-				c.Models.URLs.Insert(u)
-				c.Queue.Push(href)
-				c.Log.Printf("%s: added url '%s' to queue\n", c.Name, href)
-				// if url is marked set value to true to fetch its content
-				if u.IsMonitored {
-					c.Queue.SetMapValue(href, true)
+				err = c.Models.URLs.Insert(u)
+				if err != nil {
+					c.Log.Fatalf("%s: failed to insert url '%s' to model: %v\n", c.Name, href, err)
+				}
+				if ok := c.Queue.Push(href); ok {
+					c.Log.Printf("%s: added url '%s' to queue\n", c.Name, href)
+					// if url is marked set value to true to fetch its content
+					if u.IsMonitored {
+						c.Queue.SetMapValue(href, true)
+					}
 				}
 			}
 		}
 
 		saveURLContent, err := c.Queue.GetMapValue(urlpath)
 		if errors.Is(err, queue.ErrItemNotFound) {
-			c.Log.Fatalf("%s: FATAL : URL not found in queue map '%s'. Quitting.\n", c.Name, urlpath)
+			c.Log.Fatalf(
+				"%s: FATAL : URL not found in queue map '%s'. Quitting.\n",
+				c.Name,
+				urlpath,
+			)
 		}
 
 		// if current url is to be monitored OR marked, save content to DB and update url
@@ -240,7 +249,10 @@ func (c *Crawler) fetchEmbeddedURLs(resp *http.Response) ([]string, error) {
 	doc.Find("a").Each(func(i int, s *goquery.Selection) {
 		if href, found := s.Attr("href"); found {
 			// if href is not absolute add BaseURL to href
-			if !internal.IsAbsoluteURL(href) {
+			if !internal.IsAbsoluteURL(href) && !internal.BeginsWith(href, invalidHrefPrefixs) {
+				if !strings.HasPrefix(href, "/") {
+					href = "/" + href
+				}
 				c.Log.Printf("%s: converted relative url to absolute : %s\n", c.Name, href)
 				href = c.BaseURL.String() + href
 			}
