@@ -31,11 +31,11 @@ func NewQueue() *UniqueQueue {
 }
 
 // View the first n items of the queue
-func (q *UniqueQueue) View(n int) string {
+func (q *UniqueQueue) View(n int) (string, error) {
 	if len(q.queue) >= n {
-		return fmt.Sprint(q.queue[:n])
+		return fmt.Sprint(q.queue[:n]), nil
 	}
-	return "n is greater than length of queue"
+	return "", errors.New("n is greater than length of queue")
 }
 
 // Size returns the size of queue
