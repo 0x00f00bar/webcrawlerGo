@@ -111,12 +111,8 @@ func validateConfig(cfg *CrawlerConfig) error {
 // }
 
 // Crawl to begin crawling
-func (c *Crawler) Crawl(clientTimeout time.Duration) {
+func (c *Crawler) Crawl(client *http.Client) {
 	startTime := time.Now()
-
-	client := &http.Client{
-		Timeout: clientTimeout,
-	}
 
 	for {
 		// get item from queue

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -184,12 +185,16 @@ When empty, crawler will update monitored URLs from the model.`,
 		logger.Fatalln(err)
 	}
 
+	httpClient := &http.Client{
+		Timeout: httpClientTimeout,
+	}
+
 	for _, crawler := range crawlerArmy {
 		wg.Add(1)
 
 		go func() {
 			defer wg.Done()
-			crawler.Crawl(httpClientTimeout)
+			crawler.Crawl(httpClient)
 		}()
 
 	}

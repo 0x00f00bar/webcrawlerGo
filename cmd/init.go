@@ -102,7 +102,7 @@ func getMarkedURLS(cmdArg string) []string {
 
 // loadUrlsToQueue fetches all urls from URL model and loads them to queue
 func loadUrlsToQueue(
-	bURL url.URL,
+	baseURL url.URL,
 	q *queue.UniqueQueue,
 	m *models.Models,
 	updateInterval int,
@@ -120,7 +120,7 @@ func loadUrlsToQueue(
 		if err != nil {
 			logger.Printf("unable to parse url '%s' from model URLs\n", urlDB.URL)
 		}
-		if parsedUrlDB.Hostname() == bURL.Hostname() {
+		if parsedUrlDB.Hostname() == baseURL.Hostname() {
 			q.PushForce(urlDB.URL)
 			expiryTime := urlDB.LastSaved.Add(intervalDuration)
 			if urlDB.IsMonitored &&
