@@ -45,7 +45,7 @@ type CrawlerConfig struct {
 
 // NewCrawler return pointer to a new Crawler
 func NewCrawler(name string, cfg *CrawlerConfig) (*Crawler, error) {
-	err := verifyConfig(cfg)
+	err := validateConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func NNewCrawlers(n int, namePrefix string, cfg *CrawlerConfig) ([]*Crawler, err
 		return nil, fmt.Errorf("too few crawlers")
 	}
 
-	err := verifyConfig(cfg)
+	err := validateConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -75,9 +75,9 @@ func NNewCrawlers(n int, namePrefix string, cfg *CrawlerConfig) ([]*Crawler, err
 	return crawlers, nil
 }
 
-// verifyConfig verifies crawler config
+// validateConfig verifies crawler config
 // if Log is nil, creates new os.Stdout default logger
-func verifyConfig(cfg *CrawlerConfig) error {
+func validateConfig(cfg *CrawlerConfig) error {
 	if cfg.Queue == nil {
 		return errors.New("crawler: queue cannot be nil")
 	}
