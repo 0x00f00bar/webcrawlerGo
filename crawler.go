@@ -34,13 +34,15 @@ type Crawler struct {
 
 // CrawlerConfig to configure a crawler
 type CrawlerConfig struct {
-	Queue        *queue.UniqueQueue // global queue
-	Models       *models.Models     // models to use
-	BaseURL      *url.URL           // base URL to crawl
-	MarkedURLs   []string           // marked URL to save to model
-	RequestDelay time.Duration      // delay between subsequent requests
-	IdleTimeout  time.Duration      // timeout after which crawler quits when queue is empty
-	Log          *log.Logger        // logger to use
+	Queue          *queue.UniqueQueue // global queue
+	Models         *models.Models     // models to use
+	BaseURL        *url.URL           // base URL to crawl
+	MarkedURLs     []string           // marked URL to save to model
+	RequestDelay   time.Duration      // delay between subsequent requests
+	IdleTimeout    time.Duration      // timeout after which crawler quits when queue is empty
+	Log            *log.Logger        // logger to use
+	RetryTimes     int                // no. of times to retry failed request
+	FailedRequests map[string]int     // map to store failed requests stats
 }
 
 // NewCrawler return pointer to a new Crawler
@@ -131,8 +133,12 @@ func (c *Crawler) Crawl(client *http.Client) {
 		resp, err := getURL(urlpath, client)
 		if err != nil {
 			c.Log.Printf("%s: error in GET request: %v\n", c.Name, err)
-			// and add the url back to queue
-			c.Queue.PushForce(urlpath)
+			// check that FailedRequests is not nil (when map not init; RetryTimes==0)
+			if c.FailedRequests != nil && c.FailedRequests[urlpath] < c.RetryTimes {
+				// and add the url back to queue
+				c.Queue.PushForce(urlpath)
+				c.FailedRequests[urlpath] += 1
+			}
 			continue
 		}
 

@@ -40,6 +40,7 @@ type cmdFlags struct {
 	dbDSN          *string
 	reqDelay       time.Duration
 	idleTimeout    time.Duration
+	retryTime      *int
 }
 
 func main() {
@@ -52,25 +53,32 @@ func main() {
 	idleTimeout := flag.String(
 		"idle-time",
 		"10s",
-		"Idle time after which crawler quits when queue is empty. Min: 1s",
+		"Idle time after which crawler quits when queue is empty.\nMin: 1s",
 	)
 	baseURL := flag.String(
 		"baseurl",
 		"",
-		"Absolute base URL to crawl (required). E.g. <http/https>://<domain-name>",
+		"Absolute base URL to crawl (required).\nE.g. <http/https>://<domain-name>",
 	)
-	reqDelay := flag.String("req-delay", "50ms", "Delay between subsequent requests. Min: 1ms")
+	reqDelay := flag.String("req-delay", "50ms", "Delay between subsequent requests.\nMin: 1ms")
 	dbDSN := flag.String("db-dsn", "", "PostgreSQL DSN (required)")
 	updateDaysPast := flag.Int(
 		"days",
 		1,
-		"Days past which monitored URLs in models should be updated",
+		"Days past which monitored URLs should be updated",
 	)
 	markedURLs := flag.String(
 		"murls",
 		"",
 		`Comma ',' seperated string of marked page paths to save/update.
 When empty, crawler will update monitored URLs from the model.`,
+	)
+	retryFailedReq := flag.Int(
+		"retry",
+		2,
+		`Number of times to retry failed GET requests.
+With r=2 (default), crawlers will retry the failed GET urls
+twice after initial failure.`,
 	)
 
 	flag.Parse()
@@ -112,6 +120,7 @@ When empty, crawler will update monitored URLs from the model.`,
 		dbDSN:          dbDSN,
 		reqDelay:       pRequestDelay,
 		idleTimeout:    pIdleTime,
+		retryTime:      retryFailedReq,
 	}
 
 	validateFlags(v, &cmdArgs)
@@ -166,14 +175,24 @@ When empty, crawler will update monitored URLs from the model.`,
 	loadedURLs := loadUrlsToQueue(*cmdArgs.baseURL, q, &m, *cmdArgs.updateDaysPast, logger)
 	logger.Printf("Loaded %d URLs from model\n", loadedURLs)
 
+	// if retry == 0, don't init request stats map
+	var retryRequestStats map[string]int
+	if *cmdArgs.retryTime > 0 {
+		retryRequestStats = map[string]int{}
+	} else {
+		retryRequestStats = nil
+	}
+
 	crawlerCfg := &webcrawler.CrawlerConfig{
-		Queue:        q,
-		Models:       &m,
-		BaseURL:      cmdArgs.baseURL,
-		MarkedURLs:   cmdArgs.markedURLs,
-		RequestDelay: cmdArgs.reqDelay,
-		IdleTimeout:  cmdArgs.idleTimeout,
-		Log:          logger,
+		Queue:          q,
+		Models:         &m,
+		BaseURL:        cmdArgs.baseURL,
+		MarkedURLs:     cmdArgs.markedURLs,
+		RequestDelay:   cmdArgs.reqDelay,
+		IdleTimeout:    cmdArgs.idleTimeout,
+		Log:            logger,
+		RetryTimes:     *cmdArgs.retryTime,
+		FailedRequests: retryRequestStats,
 	}
 
 	// init waitgroup

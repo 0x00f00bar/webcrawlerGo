@@ -8,7 +8,6 @@ import (
 )
 
 func validateFlags(v *internal.Validator, args *cmdFlags) {
-
 	// validate baseurl
 	v.Check(args.baseURL.String() != "", "baseurl", "must be provided")
 	v.Check(internal.IsAbsoluteURL(args.baseURL.String()), "baseurl", "must be absolute URL")
@@ -34,4 +33,11 @@ func validateFlags(v *internal.Validator, args *cmdFlags) {
 	// validate request delay & idle-time
 	v.Check(args.reqDelay >= time.Microsecond, "req-delay", "cannot be less than 1ms")
 	v.Check(args.idleTimeout >= time.Second, "idle-time", "cannot be less than 1s")
+
+	// validate retry times
+	v.Check(
+		*args.retryTime >= 0,
+		"retry",
+		fmt.Sprintf("invalid retry time: %d. Should be >= 0.", *args.retryTime),
+	)
 }
