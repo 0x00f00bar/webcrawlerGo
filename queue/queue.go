@@ -9,6 +9,7 @@ import (
 var (
 	ErrEmptyQueue   = errors.New("queue is empty")
 	ErrItemNotFound = errors.New("item never pushed to queue")
+	ErrOutOfRange   = errors.New("n is greater than length of queue")
 )
 
 // bool in map represents whether the item should be processed
@@ -35,7 +36,7 @@ func (q *UniqueQueue) View(n int) (string, error) {
 	if len(q.queue) >= n {
 		return fmt.Sprint(q.queue[:n]), nil
 	}
-	return "", errors.New("n is greater than length of queue")
+	return "", ErrOutOfRange
 }
 
 // Size returns the size of queue
