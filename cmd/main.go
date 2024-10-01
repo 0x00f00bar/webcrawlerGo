@@ -204,8 +204,12 @@ twice after initial failure.`,
 		logger.Fatalln(err)
 	}
 
+	modifiedTransport := http.DefaultTransport.(*http.Transport).Clone()
+	modifiedTransport.MaxIdleConnsPerHost = 50
+
 	httpClient := &http.Client{
-		Timeout: httpClientTimeout,
+		Timeout:   httpClientTimeout,
+		Transport: modifiedTransport,
 	}
 
 	for _, crawler := range crawlerArmy {

@@ -220,6 +220,8 @@ func (c *Crawler) Crawl(client *http.Client) {
 
 // savePageContent saves URL response body to models
 func (c *Crawler) savePageContent(urlpath string, resp *http.Response) error {
+	// GetByURL should not fail because whenever a new URL is encountered
+	// it is saved to queue AND db
 	uModel, err := c.Models.URLs.GetByURL(urlpath)
 	if err != nil {
 		return fmt.Errorf("%s: could not get URL from model: %v", c.Name, err)
