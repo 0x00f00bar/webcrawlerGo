@@ -132,7 +132,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 
 		resp, err := getURL(urlpath, client)
 		if err != nil {
-			c.Log.Printf("%s: error in GET request: %v\n", c.Name, err)
+			c.Log.Printf("%s: error in GET request: %v for url: '%s'\n", c.Name, err, urlpath)
 			// check that FailedRequests is not nil (when map not init; RetryTimes==0)
 			if c.FailedRequests != nil && c.FailedRequests[urlpath] < c.RetryTimes {
 				// and add the url back to queue
@@ -145,9 +145,10 @@ func (c *Crawler) Crawl(client *http.Client) {
 		// if response not 200 OK
 		if resp.StatusCode != http.StatusOK {
 			c.Log.Printf(
-				"%s: error in GET request: HTTP status code received %d\n",
+				"%s: invalid HTTP status code received %d for url: '%s'\n",
 				c.Name,
 				resp.StatusCode,
+				urlpath,
 			)
 			continue
 		}
@@ -200,7 +201,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 			if err != nil {
 				c.Log.Fatalln(err)
 			}
-			c.Log.Printf("%s: saved page '%s'\n", c.Name, urlpath)
+			c.Log.Printf("%s: saved content of url '%s'\n", c.Name, urlpath)
 
 			// set key value to false as url is now processed
 			c.Queue.SetMapValue(urlpath, false)

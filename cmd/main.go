@@ -77,7 +77,7 @@ When empty, crawler will update monitored URLs from the model.`,
 		"retry",
 		2,
 		`Number of times to retry failed GET requests.
-With r=2 (default), crawlers will retry the failed GET urls
+With retry=2, crawlers will retry the failed GET urls
 twice after initial failure.`,
 	)
 
