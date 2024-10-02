@@ -89,6 +89,8 @@ func (q *UniqueQueue) SetMapValue(key string, value bool) {
 // Push appends item to the queue after checking that item was
 // never seen before by the queue. Returns true if item was added to the queue.
 //
+// Care: Map is case-sensitive. Use strings.ToLower to make case-insensitive.
+//
 // NOP when item was seen earlier in queue's lifetime.
 // Default item value is 'false'.
 //
@@ -96,7 +98,6 @@ func (q *UniqueQueue) SetMapValue(key string, value bool) {
 func (q *UniqueQueue) Push(item string) (success bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	item = strings.ToLower(item)
 	// if item is not present in strMap then
 	// item was not seen before
 	if q.FirstEncounter(item) {
@@ -111,13 +112,14 @@ func (q *UniqueQueue) Push(item string) (success bool) {
 // Useful when item was not processed successfully and needs to be reprocessed. Or while
 // bulk loading from unique set.
 //
+// Care: Map is case-sensitive. Use strings.ToLower to make case-insensitive.
+//
 // Default item value is 'false'.
 //
 // Thread safe.
 func (q *UniqueQueue) PushForce(item string) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	item = strings.ToLower(item)
 	q.strMap[item] = false
 	q.queue = append(q.queue, item)
 }
