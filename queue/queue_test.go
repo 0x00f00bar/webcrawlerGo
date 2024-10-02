@@ -6,7 +6,6 @@ import (
 )
 
 func TestUniqueQueue(t *testing.T) {
-
 	t.Run("NewQueue", func(t *testing.T) {
 		queue := NewQueue()
 
@@ -40,7 +39,12 @@ func TestUniqueQueue(t *testing.T) {
 
 			size := queue.Size()
 			if size != test.size {
-				t.Errorf("input: %s, queue size should be: %d, got: %d", test.input, test.size, size)
+				t.Errorf(
+					"input: %s, queue size should be: %d, got: %d",
+					test.input,
+					test.size,
+					size,
+				)
 			}
 		}
 	})
@@ -63,10 +67,14 @@ func TestUniqueQueue(t *testing.T) {
 
 			size := queue.Size()
 			if size != test.want {
-				t.Errorf("input: %s, queue size should be: %d, got: %d", test.input, test.want, size)
+				t.Errorf(
+					"input: %s, queue size should be: %d, got: %d",
+					test.input,
+					test.want,
+					size,
+				)
 			}
 		}
-
 	})
 
 	t.Run("Pop", func(t *testing.T) {
@@ -96,14 +104,25 @@ func TestUniqueQueue(t *testing.T) {
 
 			got, err := queue.Pop()
 			if got != test.want {
-				t.Errorf("index# %d, Force push: %t. queue pop should be: %q, got: %q", i, test.useForce, test.want, got)
+				t.Errorf(
+					"index# %d, Force push: %t. queue pop should be: %q, got: %q",
+					i,
+					test.useForce,
+					test.want,
+					got,
+				)
 			}
 
 			if !errors.Is(err, test.err) {
-				t.Errorf("index# %d, Force push: %t. queue pop error should be: %q, got: %q", i, test.useForce, test.err, err)
+				t.Errorf(
+					"index# %d, Force push: %t. queue pop error should be: %q, got: %q",
+					i,
+					test.useForce,
+					test.err,
+					err,
+				)
 			}
 		}
-
 	})
 
 	t.Run("GetAndSetMapValue", func(t *testing.T) {
@@ -137,7 +156,12 @@ func TestUniqueQueue(t *testing.T) {
 			got, err := queue.GetMapValue(test.input)
 
 			if got != test.want {
-				t.Errorf("input: %s, got queue getmap value: %t, wanted: %t", test.input, got, test.want)
+				t.Errorf(
+					"input: %s, got queue getmap value: %t, wanted: %t",
+					test.input,
+					got,
+					test.want,
+				)
 			}
 
 			if !errors.Is(err, test.err) {
@@ -174,6 +198,5 @@ func TestUniqueQueue(t *testing.T) {
 				t.Errorf("input: %s, got error: %q, wanted: %q", item.input, err, item.err)
 			}
 		}
-
 	})
 }

@@ -3,7 +3,6 @@ package queue
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 )
 
@@ -25,6 +24,8 @@ type UniqueQueue struct {
 }
 
 // NewQueue returns a pointer to new UniqueQueue
+//
+// Care: Map is case-sensitive. Use strings.ToLower on key to make case-insensitive.
 func NewQueue() *UniqueQueue {
 	return &UniqueQueue{
 		strMap: map[string]bool{},
