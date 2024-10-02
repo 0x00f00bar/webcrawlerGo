@@ -3,7 +3,6 @@ package webcrawler
 import (
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -133,7 +132,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 		resp, err := getURL(urlpath, client)
 		if err != nil {
 			c.Log.Printf("%s: error in GET request: %v for url: '%s'\n", c.Name, err, urlpath)
-			// check that FailedRequests is not nil (when map not init; RetryTimes==0)
+			// check that FailedRequests is not nil (when map is not initialised i.e. RetryTimes==0)
 			if c.FailedRequests != nil && c.FailedRequests[urlpath] < c.RetryTimes {
 				// and add the url back to queue
 				c.Queue.PushForce(urlpath)
@@ -153,8 +152,14 @@ func (c *Crawler) Crawl(client *http.Client) {
 			continue
 		}
 
-		// if OK fetch all urls embedded in the page
-		urls, err := c.fetchEmbeddedURLs(resp)
+		doc, err := goquery.NewDocumentFromReader(resp.Body)
+		if err != nil {
+			c.Log.Printf("%s: could not read response body: %v", c.Name, err)
+			continue
+		}
+
+		// if status OK fetch all hrefs embedded in the page
+		hrefs, err := c.fetchEmbeddedURLs(doc)
 		if err != nil {
 			c.Log.Printf(
 				"%s: failed to fetch embedded URLs for URL '%s' : %v\n",
@@ -166,26 +171,34 @@ func (c *Crawler) Crawl(client *http.Client) {
 		}
 
 		// go through fetched urls, if url not in queue(map) save to db and queue
-		for _, href := range urls {
-			if c.Queue.FirstEncounter(href) {
-				// temp time var as time.Time value cannot be set to nil
-				// and we don't want to set URL.LastSaved and URL.LastChecked right now
-				var t time.Time
-				u := models.NewURL(href, t, t, c.isMarkedURL(href))
-				err = c.Models.URLs.Insert(u)
-				if err != nil {
-					c.Log.Fatalf("%s: failed to insert url '%s' to model: %v\n", c.Name, href, err)
-				}
+		for _, href := range hrefs {
+			if c.isValidURL(href) {
 				if ok := c.Queue.Push(href); ok {
 					c.Log.Printf("%s: added url '%s' to queue\n", c.Name, href)
+					// temp time var as time.Time value cannot be set to nil
+					// and we don't want to set URL.LastSaved and URL.LastChecked right now
+					var t time.Time
+					u := models.NewURL(href, t, t, c.isMarkedURL(href))
+					err = c.Models.URLs.Insert(u)
+					if err != nil {
+						c.Log.Fatalf(
+							"%s: failed to insert url '%s' to model: %v\n",
+							c.Name,
+							href,
+							err,
+						)
+					}
 					// if url is marked set value to true to fetch its content
 					if u.IsMonitored {
 						c.Queue.SetMapValue(href, true)
 					}
 				}
+			} else {
+				c.Log.Printf("%s: invalid url: %s\n", c.Name, href)
 			}
 		}
 
+		// map value of current URL
 		saveURLContent, err := c.Queue.GetMapValue(urlpath)
 		if errors.Is(err, queue.ErrItemNotFound) {
 			c.Log.Fatalf(
@@ -197,7 +210,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 
 		// if current url is to be monitored OR marked, save content to DB and update url
 		if c.isMarkedURL(urlpath) || saveURLContent {
-			err = c.savePageContent(urlpath, resp)
+			err = c.savePageContent(urlpath, doc)
 			if err != nil {
 				c.Log.Fatalln(err)
 			}
@@ -205,6 +218,12 @@ func (c *Crawler) Crawl(client *http.Client) {
 
 			// set key value to false as url is now processed
 			c.Queue.SetMapValue(urlpath, false)
+		} else {
+			// else update LastChecked field
+			err = c.updateLastCheckedDate(urlpath, time.Now())
+			if err != nil {
+				c.Log.Fatalln(err)
+			}
 		}
 
 		// close response body
@@ -219,18 +238,21 @@ func (c *Crawler) Crawl(client *http.Client) {
 }
 
 // savePageContent saves URL response body to models
-func (c *Crawler) savePageContent(urlpath string, resp *http.Response) error {
+func (c *Crawler) savePageContent(urlpath string, doc *goquery.Document) error {
 	// GetByURL should not fail because whenever a new URL is encountered
 	// it is saved to queue AND db
 	uModel, err := c.Models.URLs.GetByURL(urlpath)
 	if err != nil {
 		return fmt.Errorf("%s: could not get URL from model: %v", c.Name, err)
 	}
-	urlContent, err := io.ReadAll(resp.Body)
+	contentStr, err := doc.Html()
 	if err != nil {
-		return fmt.Errorf("%s: could not read response body: %v", c.Name, err)
+		return fmt.Errorf("%s: could not read page content: %v", c.Name, err)
 	}
-	newPage := models.NewPage(uModel.ID, string(urlContent))
+	if len(contentStr) < 100 {
+		c.Log.Fatalf("empty/no content. url: '%s'; len: %d", urlpath, len(contentStr))
+	}
+	newPage := models.NewPage(uModel.ID, contentStr)
 	if err = c.Models.Pages.Insert(newPage); err != nil {
 		return fmt.Errorf("%s: could not insert page into model: %v", c.Name, err)
 	}
@@ -242,13 +264,23 @@ func (c *Crawler) savePageContent(urlpath string, resp *http.Response) error {
 	return nil
 }
 
-// fetchEmbeddedURLs will fetch all values in href attribute of <a> tag
-func (c *Crawler) fetchEmbeddedURLs(resp *http.Response) ([]string, error) {
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+// updateLastCheckedDate updates the LastChecked field of URL
+func (c *Crawler) updateLastCheckedDate(urlpath string, datetime time.Time) error {
+	// GetByURL should not fail because whenever a new URL is encountered
+	// it is saved to queue AND db
+	uModel, err := c.Models.URLs.GetByURL(urlpath)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("%s: could not get URL from model: %v", c.Name, err)
 	}
+	uModel.LastChecked = datetime
+	if err = c.Models.URLs.Update(uModel); err != nil {
+		return fmt.Errorf("%s: could not update URL model: %v", c.Name, err)
+	}
+	return nil
+}
 
+// fetchEmbeddedURLs will fetch all values in href attribute of <a> tag
+func (c *Crawler) fetchEmbeddedURLs(doc *goquery.Document) ([]string, error) {
 	hrefs := []string{}
 
 	doc.Find("a").Each(func(i int, s *goquery.Selection) {
@@ -261,11 +293,9 @@ func (c *Crawler) fetchEmbeddedURLs(resp *http.Response) ([]string, error) {
 				c.Log.Printf("%s: converted relative url to absolute : %s\n", c.Name, href)
 				href = c.BaseURL.String() + href
 			}
-			if c.isValidURL(href) {
-				hrefs = append(hrefs, href)
-			} else {
-				c.Log.Printf("%s: invalid url: %s\n", c.Name, href)
-			}
+			// convert to lower to make queue case insensitive
+			href = strings.ToLower(href)
+			hrefs = append(hrefs, href)
 		}
 	})
 	return hrefs, nil
