@@ -79,6 +79,7 @@ func (u urlDB) GetByURL(urlStr string) (*models.URL, error) {
 
 	err := u.DB.QueryRowContext(ctx, query, urlStr).Scan(
 		&url.ID,
+		&url.URL,
 		&url.FirstEncountered,
 		&url.LastChecked,
 		&url.LastSaved,
