@@ -100,7 +100,8 @@ func getMarkedURLS(cmdArg string) []string {
 	return markedURLs
 }
 
-// loadUrlsToQueue fetches all urls from URL model and loads them to queue
+// loadUrlsToQueue fetches all urls from URL model and loads them to queue.
+// Returns the number of URLs pushed to queue
 func loadUrlsToQueue(
 	baseURL url.URL,
 	q *queue.UniqueQueue,
@@ -114,20 +115,27 @@ func loadUrlsToQueue(
 	}
 	intervalDuration, _ := time.ParseDuration(fmt.Sprintf("%dh", updateInterval*24))
 	currentTime := time.Now()
+	var urlsPushedToQ int = 0
 	// if isMonitored true and timestamp after updateInterval in db, set them as true, others false to not process
 	for _, urlDB := range dburls {
 		parsedUrlDB, err := url.Parse(urlDB.URL)
 		if err != nil {
 			logger.Printf("unable to parse url '%s' from model URLs\n", urlDB.URL)
 		}
+		// only process URLs belonging to baseURL
 		if parsedUrlDB.Hostname() == baseURL.Hostname() {
-			q.PushForce(urlDB.URL)
 			expiryTime := urlDB.LastSaved.Add(intervalDuration)
+			// only add to queue if url is monitored and currentTime >= expiryTime
+			// else just add to map with false value to not access that URL
 			if urlDB.IsMonitored &&
 				(currentTime.After(expiryTime) || currentTime.Equal(expiryTime)) {
+				q.PushForce(urlDB.URL)
 				q.SetMapValue(urlDB.URL, true)
+				urlsPushedToQ += 1
+			} else {
+				q.SetMapValue(urlDB.URL, false)
 			}
 		}
 	}
-	return len(dburls)
+	return urlsPushedToQ
 }
