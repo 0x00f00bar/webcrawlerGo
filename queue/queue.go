@@ -3,6 +3,7 @@ package queue
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -51,12 +52,7 @@ func (q *UniqueQueue) IsEmpty() bool {
 
 // FirstEncounter returns true if the item was seen for the first time by the queue in its lifetime
 func (q *UniqueQueue) FirstEncounter(item string) bool {
-	if _, ok := q.strMap[item]; ok {
-		// if item present in map return false, item seen before
-		return false
-	}
-	// new item return true
-	return true
+	return !isPresentInMap(item, q.strMap)
 }
 
 // GetMapValue returns value of key inside the map used by
@@ -82,9 +78,11 @@ func (q *UniqueQueue) GetMapValue(key string) (bool, error) {
 
 // SetMapValue set value of key inside the map used by
 // UniqueQueue.
+//
+// Thread safe.
 func (q *UniqueQueue) SetMapValue(key string, value bool) {
-	// q.mu.Lock()
-	// defer q.mu.Unlock()
+	q.mu.Lock()
+	defer q.mu.Unlock()
 	q.strMap[key] = value
 }
 
@@ -98,6 +96,9 @@ func (q *UniqueQueue) SetMapValue(key string, value bool) {
 func (q *UniqueQueue) Push(item string) (success bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	item = strings.ToLower(item)
+	// if item is not present in strMap then
+	// item was not seen before
 	if q.FirstEncounter(item) {
 		q.strMap[item] = false
 		q.queue = append(q.queue, item)
@@ -116,6 +117,7 @@ func (q *UniqueQueue) Push(item string) (success bool) {
 func (q *UniqueQueue) PushForce(item string) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	item = strings.ToLower(item)
 	q.strMap[item] = false
 	q.queue = append(q.queue, item)
 }
@@ -133,4 +135,10 @@ func (q *UniqueQueue) Pop() (string, error) {
 		return x, nil
 	}
 	return "", ErrEmptyQueue
+}
+
+// isPresentInMap checks if item is present in hashmap
+func isPresentInMap(item string, hashmap map[string]bool) bool {
+	_, ok := hashmap[item]
+	return ok
 }
