@@ -4,6 +4,7 @@ TODO
 - [x] strip trailing / in Base URL arg before init new crawler, add leading / if not present in marked Urls
 - [x] Add index to DB
 - [x] modify db connection settings: max/min connections, etc
-- [ ] There might be a case when the marked url is different from url fetched from db, and db entry isMonitored is set to true, decide what2do
+- [x] There might be a case when the marked url is different from url fetched from db, and db entry isMonitored is set to true, decide what2do -> saving both if same baseURL
 - [ ] extended href validation required, way to ignore urls -> list of strings to check if present, ignore
 - [ ] add flag to blacklist/whitelist urls based on 1) Content-Type, Content-Length header and 2) file extensions
+- [ ] make marked-url mandatory; '*' as wildcard to fetch all pages?
