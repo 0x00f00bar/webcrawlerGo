@@ -175,6 +175,12 @@ twice after initial failure.`,
 	m.URLs = psqlModels.URLModel
 	m.Pages = psqlModels.PageModel
 
+	// insert base URL to URL model if not present
+	// when present will throw unique constraint error, which can be ignored
+	var t time.Time
+	u := models.NewURL(cmdArgs.baseURL.String(), t, t, false)
+	_ = m.URLs.Insert(u)
+
 	// get all urls from db, put all in queue's map
 	loadedURLs := loadUrlsToQueue(*cmdArgs.baseURL, q, &m, *cmdArgs.updateDaysPast, logger)
 	logger.Printf("Loaded %d URLs from model\n", loadedURLs)
@@ -192,6 +198,7 @@ twice after initial failure.`,
 		Models:         &m,
 		BaseURL:        cmdArgs.baseURL,
 		MarkedURLs:     cmdArgs.markedURLs,
+		IgnorePaths:    cmdArgs.ignorePaths,
 		RequestDelay:   cmdArgs.reqDelay,
 		IdleTimeout:    cmdArgs.idleTimeout,
 		Log:            logger,
