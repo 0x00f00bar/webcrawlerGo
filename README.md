@@ -6,6 +6,8 @@ Crawler will crawl the provided Base URL and fetch all the valid hrefs on the pa
 Unseen hrefs will be added to a unique queue for fetching hrefs in them.
 Crawler will save the paths which are to be monitored (from models) or marked (from cmd arg).
 
+Requires PostgreSQL.
+
 ### Usage:
 
     webcrawler -baseurl <url> -db-dsn "<dsn>" [OPTIONS]
@@ -39,3 +41,6 @@ Crawler will save the paths which are to be monitored (from models) or marked (f
   Note: 
    - Crawler will ignore the hrefs that begins with "file:", "javascript:", "mailto:", "tel:", "#", "data:"
    - Marking URLs with -murls option will set is_monitored=true in models.
+   - Use -ignore option to ignore any pattern in url path, for e.g. to ignore paths with pdf files add '.pdf' to ignore
+   list
+

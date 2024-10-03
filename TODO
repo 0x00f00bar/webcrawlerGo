@@ -10,3 +10,5 @@ TODO
 - [ ] make marked-url mandatory?; '*' as wildcard to fetch all pages?
 - [x] maintain a ignored hash map
 - [ ] implement models for SQLite
+- [ ] write the web UI to view and manage 'URLs' and 'Pages' models
+- [ ] scrolling logs
