@@ -193,17 +193,21 @@ twice after initial failure.`,
 		retryRequestStats = nil
 	}
 
+	// make a map of known invalid paths for efficient filtering
+	knownInvalidURLSs := &webcrawler.InvalidURLCache{}
+
 	crawlerCfg := &webcrawler.CrawlerConfig{
-		Queue:          q,
-		Models:         &m,
-		BaseURL:        cmdArgs.baseURL,
-		MarkedURLs:     cmdArgs.markedURLs,
-		IgnorePaths:    cmdArgs.ignorePaths,
-		RequestDelay:   cmdArgs.reqDelay,
-		IdleTimeout:    cmdArgs.idleTimeout,
-		Log:            logger,
-		RetryTimes:     *cmdArgs.retryTime,
-		FailedRequests: retryRequestStats,
+		Queue:            q,
+		Models:           &m,
+		BaseURL:          cmdArgs.baseURL,
+		MarkedURLs:       cmdArgs.markedURLs,
+		IgnorePaths:      cmdArgs.ignorePaths,
+		RequestDelay:     cmdArgs.reqDelay,
+		IdleTimeout:      cmdArgs.idleTimeout,
+		Log:              logger,
+		RetryTimes:       *cmdArgs.retryTime,
+		FailedRequests:   retryRequestStats,
+		KnownInvalidURLs: knownInvalidURLSs,
 	}
 
 	// init waitgroup

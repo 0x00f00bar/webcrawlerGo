@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -31,18 +32,24 @@ type Crawler struct {
 	*CrawlerConfig
 }
 
+// InvalidURLCache is the cache for invalid URLs
+type InvalidURLCache struct {
+	cache sync.Map
+}
+
 // CrawlerConfig to configure a crawler
 type CrawlerConfig struct {
-	Queue          *queue.UniqueQueue // global queue
-	Models         *models.Models     // models to use
-	BaseURL        *url.URL           // base URL to crawl
-	MarkedURLs     []string           // marked URL to save to model
-	IgnorePaths    []string           // URL paths to ignore
-	RequestDelay   time.Duration      // delay between subsequent requests
-	IdleTimeout    time.Duration      // timeout after which crawler quits when queue is empty
-	Log            *log.Logger        // logger to use
-	RetryTimes     int                // no. of times to retry failed request
-	FailedRequests map[string]int     // map to store failed requests stats
+	Queue            *queue.UniqueQueue // global queue
+	Models           *models.Models     // models to use
+	BaseURL          *url.URL           // base URL to crawl
+	MarkedURLs       []string           // marked URL to save to model
+	IgnorePaths      []string           // URL paths to ignore
+	RequestDelay     time.Duration      // delay between subsequent requests
+	IdleTimeout      time.Duration      // timeout after which crawler quits when queue is empty
+	Log              *log.Logger        // logger to use
+	RetryTimes       int                // no. of times to retry failed request
+	FailedRequests   map[string]int     // map to store failed requests stats
+	KnownInvalidURLs *InvalidURLCache   // known map of invalid URLs
 }
 
 // NewCrawler return pointer to a new Crawler
@@ -196,6 +203,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 				}
 			} else {
 				c.Log.Printf("%s: invalid url: %s\n", c.Name, href)
+				c.KnownInvalidURLs.cache.Store(href, true)
 			}
 		}
 
@@ -286,17 +294,21 @@ func (c *Crawler) fetchEmbeddedURLs(doc *goquery.Document) ([]string, error) {
 
 	doc.Find("a").Each(func(i int, s *goquery.Selection) {
 		if href, found := s.Attr("href"); found {
+			href = strings.TrimSpace(href)
 			// if href is not absolute add BaseURL to href
 			if !internal.IsAbsoluteURL(href) && !internal.BeginsWith(href, invalidHrefPrefixs) {
 				if !strings.HasPrefix(href, "/") {
 					href = "/" + href
 				}
-				c.Log.Printf("%s: converted relative url to absolute : %s\n", c.Name, href)
 				href = c.BaseURL.String() + href
 			}
 			// convert to lower to make queue case insensitive
 			href = strings.ToLower(href)
-			hrefs = append(hrefs, href)
+
+			// if href is known to be invalid, ignore
+			if _, knownInvalid := c.KnownInvalidURLs.cache.Load(href); !knownInvalid {
+				hrefs = append(hrefs, href)
+			}
 		}
 	})
 	return hrefs, nil

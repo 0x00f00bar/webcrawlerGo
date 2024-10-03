@@ -8,3 +8,4 @@ TODO
 - [ ] extended href validation required, way to ignore urls -> list of strings to check if present, ignore
 - [ ] add flag to blacklist/whitelist urls based on 1) Content-Type, Content-Length header and 2) file extensions
 - [ ] make marked-url mandatory; '*' as wildcard to fetch all pages?
+- [x] maintain a ignored hash map, 
