@@ -42,3 +42,13 @@ func BeginsWith(s string, testStr []string) bool {
 	}
 	return false
 }
+
+// ContainsAny checks if str contains any of the substrings
+func ContainsAny(str string, substrings []string) bool {
+	for _, sub := range substrings {
+		if strings.Contains(str, sub) {
+			return true
+		}
+	}
+	return false
+}

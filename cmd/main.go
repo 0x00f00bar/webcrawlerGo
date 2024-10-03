@@ -37,6 +37,7 @@ type cmdFlags struct {
 	baseURL        *url.URL
 	updateDaysPast *int
 	markedURLs     []string
+	ignorePaths    []string
 	dbDSN          *string
 	reqDelay       time.Duration
 	idleTimeout    time.Duration
@@ -44,7 +45,8 @@ type cmdFlags struct {
 }
 
 func main() {
-	fmt.Printf(Cyan + "\nWhat do we want: " + Red + "To fetch all the pages!" + Reset)
+	fmt.Printf(Cyan + "\nWho are we?      : " + Red + "web crawlers!" + Reset)
+	fmt.Printf(Cyan + "\nWhat do we want? : " + Red + "To fetch all the pages!" + Reset)
 	fmt.Println(Red + banner + Reset)
 	fmt.Printf(Cyan+"v%s\n\n"+Reset, version)
 
@@ -70,9 +72,10 @@ func main() {
 	markedURLs := flag.String(
 		"murls",
 		"",
-		`Comma ',' seperated string of marked page paths to save/update.
+		`Comma ',' seperated string of marked url paths to save/update.
 When empty, crawler will update monitored URLs from the model.`,
 	)
+	ignorePathList := flag.String("ignore", "", "Comma ',' seperated string of url paths to ignore.")
 	retryFailedReq := flag.Int(
 		"retry",
 		2,
@@ -117,6 +120,7 @@ twice after initial failure.`,
 		baseURL:        parsedBaseURL,
 		updateDaysPast: updateDaysPast,
 		markedURLs:     markedURLSlice,
+		ignorePaths:    seperateCmdArgs(*ignorePathList),
 		dbDSN:          dbDSN,
 		reqDelay:       pRequestDelay,
 		idleTimeout:    pIdleTime,

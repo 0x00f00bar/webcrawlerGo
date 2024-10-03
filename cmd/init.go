@@ -74,19 +74,9 @@ func openDB(dsn string) (*sql.DB, error) {
 }
 
 // getMarkedURLS returns a slice of marked urls starting with '/'
-func getMarkedURLS(cmdArg string) []string {
-	markedURLs := []string{}
-	cmdArg = strings.TrimSpace(cmdArg)
+func getMarkedURLS(mURLStr string) []string {
 	// return empty slice when no marked urls
-	if cmdArg == "" {
-		return markedURLs
-	}
-
-	if strings.Contains(cmdArg, ",") {
-		markedURLs = strings.Split(cmdArg, ",")
-	} else {
-		markedURLs = append(markedURLs, cmdArg)
-	}
+	markedURLs := seperateCmdArgs(mURLStr)
 
 	// add leading '/' if not present
 	for i, mUrl := range markedURLs {
@@ -97,6 +87,23 @@ func getMarkedURLS(cmdArg string) []string {
 		markedURLs[i] = mUrl
 	}
 
+	return markedURLs
+}
+
+// seperateCmdArgs returns string slice of comma seperated cmd args
+func seperateCmdArgs(mURLStr string) []string {
+	markedURLs := []string{}
+	mURLStr = strings.TrimSpace(mURLStr)
+
+	if mURLStr == "" {
+		return markedURLs
+	}
+
+	if strings.Contains(mURLStr, ",") {
+		markedURLs = strings.Split(mURLStr, ",")
+	} else {
+		markedURLs = append(markedURLs, mURLStr)
+	}
 	return markedURLs
 }
 

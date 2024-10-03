@@ -37,6 +37,7 @@ type CrawlerConfig struct {
 	Models         *models.Models     // models to use
 	BaseURL        *url.URL           // base URL to crawl
 	MarkedURLs     []string           // marked URL to save to model
+	IgnorePaths    []string           // URL paths to ignore
 	RequestDelay   time.Duration      // delay between subsequent requests
 	IdleTimeout    time.Duration      // timeout after which crawler quits when queue is empty
 	Log            *log.Logger        // logger to use
@@ -308,6 +309,7 @@ Rules:
   - Have base URL if absolute URL
   - Is not empty
   - Scheme is either HTTP/HTTPS
+  - Not in ignore paths list
 */
 func (c *Crawler) isValidURL(href string) bool {
 	// URL is not empty
@@ -329,6 +331,11 @@ func (c *Crawler) isValidURL(href string) bool {
 
 	// valid scheme: HTTP/HTTPS
 	if !internal.IsValidScheme(parsedURL.Scheme) {
+		return false
+	}
+
+	// check if path in ignore paths list
+	if internal.ContainsAny(parsedURL.Path, c.IgnorePaths) {
 		return false
 	}
 

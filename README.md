@@ -20,8 +20,10 @@ Crawler will save the paths which are to be monitored (from models) or marked (f
     -idle-time string
         Idle time after which crawler quits when queue is empty.
         Min: 1s (default "10s")
+    -ignore string
+        Comma ',' seperated string of url paths to ignore.
     -murls string
-        Comma ',' seperated string of marked page paths to save/update.
+        Comma ',' seperated string of marked url paths to save/update.
         When empty, crawler will update monitored URLs from the model.
     -n int
         Number of crawlers to invoke (default 10)
