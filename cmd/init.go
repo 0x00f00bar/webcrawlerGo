@@ -43,7 +43,7 @@ func initialiseLogger() (f *os.File, logger *log.Logger) {
 	if err != nil {
 		panic(err)
 	}
-	return f, log.New(io.MultiWriter(os.Stdout, f), "", log.LstdFlags)
+	return f, log.New(io.MultiWriter(os.Stdout, f), "", log.LstdFlags|log.Lshortfile)
 }
 
 // openDB opens and tests a connection to database identified

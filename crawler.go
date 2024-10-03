@@ -100,7 +100,7 @@ func validateConfig(cfg *CrawlerConfig) error {
 	}
 
 	if cfg.Log == nil {
-		cfg.Log = log.New(os.Stdout, "crawler", log.LstdFlags)
+		cfg.Log = log.New(os.Stdout, "crawler", log.LstdFlags|log.Lshortfile)
 	}
 
 	return nil
@@ -271,7 +271,7 @@ func (c *Crawler) updateLastCheckedDate(urlpath string, datetime time.Time) erro
 	// it is saved to queue AND db
 	uModel, err := c.Models.URLs.GetByURL(urlpath)
 	if err != nil {
-		return fmt.Errorf("%s: could not get URL from model: %v", c.Name, err)
+		return fmt.Errorf("%s: could not get URL '%s' from model: %v", c.Name, urlpath, err)
 	}
 	uModel.LastChecked = datetime
 	if err = c.Models.URLs.Update(uModel); err != nil {
