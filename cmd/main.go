@@ -182,7 +182,7 @@ twice after initial failure.`,
 	_ = m.URLs.Insert(u)
 
 	// get all urls from db, put all in queue's map
-	loadedURLs := loadUrlsToQueue(*cmdArgs.baseURL, q, &m, *cmdArgs.updateDaysPast, logger)
+	loadedURLs := loadUrlsToQueue(*cmdArgs.baseURL, q, &m, *cmdArgs.updateDaysPast, logger, cmdArgs.markedURLs)
 	logger.Printf("Loaded %d URLs from model\n", loadedURLs)
 
 	// if retry == 0, don't init request stats map

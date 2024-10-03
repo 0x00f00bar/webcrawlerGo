@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0x00f00bar/web-crawler/internal"
 	"github.com/0x00f00bar/web-crawler/models"
 	"github.com/0x00f00bar/web-crawler/queue"
 )
@@ -115,6 +116,7 @@ func loadUrlsToQueue(
 	m *models.Models,
 	updateInterval int,
 	logger *log.Logger,
+	markedURLs []string,
 ) int {
 	dburls, err := m.URLs.GetAll("is_monitored")
 	if err != nil {
@@ -132,10 +134,31 @@ func loadUrlsToQueue(
 		// only process URLs belonging to baseURL
 		if parsedUrlDB.Hostname() == baseURL.Hostname() {
 			expiryTime := urlDB.LastSaved.Add(intervalDuration)
-			// only add to queue if url is monitored and currentTime >= expiryTime
+
+			var fetchContent bool
+
+			switch {
+			// add to queue if url is monitored and currentTime >= expiryTime
+			case urlDB.IsMonitored &&
+				(currentTime.After(expiryTime) || currentTime.Equal(expiryTime)):
+				fetchContent = true
+
+			// add to queue if url is marked by cmd args but not monitored
+			case !urlDB.IsMonitored && internal.ContainsAny(urlDB.URL, markedURLs):
+				fetchContent = true
+				// mark url as monitored as if marked
+				urlDB.IsMonitored = true
+				err := m.URLs.Update(urlDB)
+				if err != nil {
+					logger.Fatalf("unable to update model for url '%s': %v\n", urlDB.URL, err)
+				}
+
 			// else just add to map with false value to not access that URL
-			if urlDB.IsMonitored &&
-				(currentTime.After(expiryTime) || currentTime.Equal(expiryTime)) {
+			default:
+				fetchContent = false
+			}
+
+			if fetchContent {
 				q.PushForce(urlDB.URL)
 				q.SetMapValue(urlDB.URL, true)
 				urlsPushedToQ += 1

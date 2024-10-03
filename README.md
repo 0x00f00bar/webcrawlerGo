@@ -38,3 +38,4 @@ Crawler will save the paths which are to be monitored (from models) or marked (f
 
   Note: 
    - Crawler will ignore the hrefs that begins with "file:", "javascript:", "mailto:", "tel:", "#", "data:"
+   - Marking URLs with -murls option will set is_monitored=true in models.
