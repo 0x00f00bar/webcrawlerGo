@@ -350,10 +350,5 @@ func (c *Crawler) isValidURL(href string) bool {
 
 // isMarkedURL checks whether the href should be processed
 func (c *Crawler) isMarkedURL(href string) bool {
-	for _, mUrl := range c.MarkedURLs {
-		if mUrl != "" && strings.Contains(href, mUrl) {
-			return true
-		}
-	}
-	return false
+	return internal.ContainsAny(href, c.MarkedURLs)
 }
