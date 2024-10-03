@@ -113,12 +113,6 @@ func validateConfig(cfg *CrawlerConfig) error {
 	return nil
 }
 
-// GetURL fetches first item from queue, if queue
-// is empty returns queue.ErrEmptyQueue
-// func (c *Crawler) GetURL() (string, error) {
-// 	return c.Queue.Pop()
-// }
-
 // Crawl to begin crawling
 func (c *Crawler) Crawl(client *http.Client) {
 	startTime := time.Now()

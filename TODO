@@ -8,4 +8,5 @@ TODO
 - [x] extended href validation required, way to ignore urls -> list of strings to check if present, ignore
 - [x] add flag to blacklist/whitelist urls based on 1) Content-Type, Content-Length header and 2) file extensions -> handled by ignore list
 - [ ] make marked-url mandatory?; '*' as wildcard to fetch all pages?
-- [x] maintain a ignored hash map, 
+- [x] maintain a ignored hash map
+- [ ] implement models for SQLite
