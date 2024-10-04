@@ -140,6 +140,13 @@ func (q *UniqueQueue) Pop() (string, error) {
 	return "", ErrEmptyQueue
 }
 
+// Clear removes all items from the queue but not from its map
+func (q *UniqueQueue) Clear() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.queue = nil
+}
+
 // isPresentInMap checks if item is present in hashmap
 func isPresentInMap(item string, hashmap map[string]bool) bool {
 	_, ok := hashmap[item]

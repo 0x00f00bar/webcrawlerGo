@@ -46,7 +46,7 @@ type cmdFlags struct {
 
 func main() {
 	fmt.Printf(Cyan + "\nWho are we?      : " + Red + "web crawlers!" + Reset)
-	fmt.Printf(Cyan + "\nWhat do we want? : " + Red + "To fetch all the pages!" + Reset)
+	fmt.Printf(Cyan + "\nWhat do we want? : " + Red + "To crawl the web!" + Reset)
 	fmt.Println(Red + banner + Reset)
 	fmt.Printf(Cyan+"v%s\n\n"+Reset, version)
 
