@@ -9,8 +9,8 @@ TODO
 - [x] add flag to blacklist/whitelist urls based on 1) Content-Type, Content-Length header and 2) file extensions -> handled by ignore list
 - [ ] make marked-url mandatory?; '*' as wildcard to fetch all pages?
 - [x] maintain a ignored hash map
-- [ ] implement models for SQLite
-- [ ] graceful exit
-- [ ] write the web UI to view and manage 'URLs' and 'Pages' models
-- [ ] scrolling logs
-- [ ] write monitored urls to files
+- [ ] implement models for SQLite v0.8.0
+- [x] graceful exit v0.5.0
+- [ ] write the web UI to view and manage 'URLs' and 'Pages' models v0.9.0
+- [ ] scrolling logs v0.6.0
+- [ ] write monitored urls to files v0.7.0
