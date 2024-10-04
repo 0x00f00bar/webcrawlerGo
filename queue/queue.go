@@ -144,7 +144,9 @@ func (q *UniqueQueue) Pop() (string, error) {
 func (q *UniqueQueue) Clear() {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	q.queue = nil
+	if len(q.queue) > 0 {
+		q.queue = nil
+	}
 }
 
 // isPresentInMap checks if item is present in hashmap

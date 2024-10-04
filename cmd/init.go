@@ -111,6 +111,7 @@ func seperateCmdArgs(mURLStr string) []string {
 // loadUrlsToQueue fetches all urls from URL model and loads them to queue.
 // Returns the number of URLs pushed to queue
 func loadUrlsToQueue(
+	ctx context.Context,
 	baseURL url.URL,
 	q *queue.UniqueQueue,
 	m *models.Models,
@@ -127,43 +128,49 @@ func loadUrlsToQueue(
 	var urlsPushedToQ int = 0
 	// if isMonitored true and timestamp after updateInterval in db, set them as true, others false to not process
 	for _, urlDB := range dburls {
-		parsedUrlDB, err := url.Parse(urlDB.URL)
-		if err != nil {
-			logger.Printf("unable to parse url '%s' from model URLs\n", urlDB.URL)
-		}
-		// only process URLs belonging to baseURL
-		if parsedUrlDB.Hostname() == baseURL.Hostname() {
-			expiryTime := urlDB.LastSaved.Add(intervalDuration)
+		select {
+		case <-ctx.Done():
+			return urlsPushedToQ
+		default:
 
-			var fetchContent bool
+			parsedUrlDB, err := url.Parse(urlDB.URL)
+			if err != nil {
+				logger.Printf("unable to parse url '%s' from model URLs\n", urlDB.URL)
+			}
+			// only process URLs belonging to baseURL
+			if parsedUrlDB.Hostname() == baseURL.Hostname() {
+				expiryTime := urlDB.LastSaved.Add(intervalDuration)
 
-			switch {
-			// add to queue if url is monitored and currentTime >= expiryTime
-			case urlDB.IsMonitored &&
-				(currentTime.After(expiryTime) || currentTime.Equal(expiryTime)):
-				fetchContent = true
+				var fetchContent bool
 
-			// add to queue if url is marked by cmd args but not monitored
-			case !urlDB.IsMonitored && internal.ContainsAny(urlDB.URL, markedURLs):
-				fetchContent = true
-				// mark url as monitored as if marked
-				urlDB.IsMonitored = true
-				err := m.URLs.Update(urlDB)
-				if err != nil {
-					logger.Fatalf("unable to update model for url '%s': %v\n", urlDB.URL, err)
+				switch {
+				// add to queue if url is monitored and currentTime >= expiryTime
+				case urlDB.IsMonitored &&
+					(currentTime.After(expiryTime) || currentTime.Equal(expiryTime)):
+					fetchContent = true
+
+				// add to queue if url is marked by cmd args but not monitored
+				case !urlDB.IsMonitored && internal.ContainsAny(urlDB.URL, markedURLs):
+					fetchContent = true
+					// mark url as monitored as if marked
+					urlDB.IsMonitored = true
+					err := m.URLs.Update(urlDB)
+					if err != nil {
+						logger.Fatalf("unable to update model for url '%s': %v\n", urlDB.URL, err)
+					}
+
+				// else just add to map with false value to not access that URL
+				default:
+					fetchContent = false
 				}
 
-			// else just add to map with false value to not access that URL
-			default:
-				fetchContent = false
-			}
-
-			if fetchContent {
-				q.PushForce(urlDB.URL)
-				q.SetMapValue(urlDB.URL, true)
-				urlsPushedToQ += 1
-			} else {
-				q.SetMapValue(urlDB.URL, false)
+				if fetchContent {
+					q.PushForce(urlDB.URL)
+					q.SetMapValue(urlDB.URL, true)
+					urlsPushedToQ += 1
+				} else {
+					q.SetMapValue(urlDB.URL, false)
+				}
 			}
 		}
 	}

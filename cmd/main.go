@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -20,7 +24,7 @@ import (
 )
 
 var (
-	version = "0.1.0"
+	version = "0.5.0"
 	banner  = `
                             __         
   ______________ __      __/ /__  _____
@@ -29,7 +33,8 @@ var (
 \___/_/   \__,_/ |__/|__/_/\___/_/     
                                        `
 
-	httpClientTimeout = 5 * time.Second
+	// timeout used in http.Client and timeout while shutting down
+	defaultTimeout = 5 * time.Second
 )
 
 type cmdFlags struct {
@@ -75,7 +80,11 @@ func main() {
 		`Comma ',' seperated string of marked url paths to save/update.
 When empty, crawler will update monitored URLs from the model.`,
 	)
-	ignorePathList := flag.String("ignore", "", "Comma ',' seperated string of url paths to ignore.")
+	ignorePathList := flag.String(
+		"ignore",
+		"",
+		"Comma ',' seperated string of url paths to ignore.",
+	)
 	retryFailedReq := flag.Int(
 		"retry",
 		2,
@@ -181,8 +190,20 @@ twice after initial failure.`,
 	u := models.NewURL(cmdArgs.baseURL.String(), t, t, false)
 	_ = m.URLs.Insert(u)
 
+	// create cancel context to use for graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	go listenForSignals(cancel, q, logger)
+
 	// get all urls from db, put all in queue's map
-	loadedURLs := loadUrlsToQueue(*cmdArgs.baseURL, q, &m, *cmdArgs.updateDaysPast, logger, cmdArgs.markedURLs)
+	loadedURLs := loadUrlsToQueue(
+		ctx,
+		*cmdArgs.baseURL,
+		q,
+		&m,
+		*cmdArgs.updateDaysPast,
+		logger,
+		cmdArgs.markedURLs,
+	)
 	logger.Printf("Loaded %d URLs from model\n", loadedURLs)
 
 	// if retry == 0, don't init request stats map
@@ -208,6 +229,7 @@ twice after initial failure.`,
 		RetryTimes:       *cmdArgs.retryTime,
 		FailedRequests:   retryRequestStats,
 		KnownInvalidURLs: knownInvalidURLSs,
+		Ctx:              ctx,
 	}
 
 	// init waitgroup
@@ -223,7 +245,7 @@ twice after initial failure.`,
 	modifiedTransport.MaxIdleConnsPerHost = 50
 
 	httpClient := &http.Client{
-		Timeout:   httpClientTimeout,
+		Timeout:   defaultTimeout,
 		Transport: modifiedTransport,
 	}
 
@@ -241,4 +263,19 @@ twice after initial failure.`,
 	wg.Wait()
 	logger.Println("Done")
 	fmt.Print(Red, "Done", Reset, "\n")
+}
+
+func listenForSignals(cancel context.CancelFunc, queue *queue.UniqueQueue, logger *log.Logger) {
+	defer cancel()
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	// wait for signal
+	s := <-quit
+	// clear queue
+	queue.Clear()
+
+	logger.Println("=============== SHUTDOWN INITIATED ===============")
+	logger.Printf("%s signal received.", s.String())
+	logger.Printf("Will shutdown in %s\n", defaultTimeout.String())
+	time.Sleep(defaultTimeout)
 }

@@ -1,6 +1,7 @@
 package webcrawler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -50,6 +51,7 @@ type CrawlerConfig struct {
 	RetryTimes       int                // no. of times to retry failed request
 	FailedRequests   map[string]int     // map to store failed requests stats
 	KnownInvalidURLs *InvalidURLCache   // known map of invalid URLs
+	Ctx              context.Context    // context to quit on SIGINT/SIGTERM
 }
 
 // NewCrawler return pointer to a new Crawler
@@ -118,125 +120,131 @@ func (c *Crawler) Crawl(client *http.Client) {
 	startTime := time.Now()
 
 	for {
-		// get item from queue
-		urlpath, err := c.Queue.Pop()
+		select {
+		case <-c.Ctx.Done():
+			c.Log.Printf("%s: Termination signal received. Shutting down\n", c.Name)
+			return
+		default:
+			// get item from queue
+			urlpath, err := c.Queue.Pop()
 
-		// if queue is empty wait for defaultSleepDuration; retry upto idle timeout before quitting
-		if errors.Is(err, queue.ErrEmptyQueue) {
-			if time.Since(startTime) > c.IdleTimeout {
-				c.Log.Printf("%s: Queue is empty, quitting.\n", c.Name)
-				return
-			}
-			time.Sleep(defaultSleepDuration)
-			continue
-		}
-
-		resp, err := getURL(urlpath, client)
-		if err != nil {
-			c.Log.Printf("%s: error in GET request: %v for url: '%s'\n", c.Name, err, urlpath)
-			// check that FailedRequests is not nil (when map is not initialised i.e. RetryTimes==0)
-			if c.FailedRequests != nil && c.FailedRequests[urlpath] < c.RetryTimes {
-				// and add the url back to queue
-				c.Queue.PushForce(urlpath)
-				c.FailedRequests[urlpath] += 1
-			}
-			continue
-		}
-
-		// if response not 200 OK
-		if resp.StatusCode != http.StatusOK {
-			c.Log.Printf(
-				"%s: invalid HTTP status code received %d for url: '%s'\n",
-				c.Name,
-				resp.StatusCode,
-				urlpath,
-			)
-			continue
-		}
-
-		doc, err := goquery.NewDocumentFromReader(resp.Body)
-		if err != nil {
-			c.Log.Printf("%s: could not read response body: %v", c.Name, err)
-			continue
-		}
-
-		// if status OK fetch all hrefs embedded in the page
-		hrefs, err := c.fetchEmbeddedURLs(doc)
-		if err != nil {
-			c.Log.Printf(
-				"%s: failed to fetch embedded URLs for URL '%s' : %v\n",
-				c.Name,
-				urlpath,
-				err,
-			)
-			continue
-		}
-
-		// go through fetched urls, if url not in queue(map) save to db and queue
-		for _, href := range hrefs {
-			if c.isValidURL(href) {
-				if ok := c.Queue.Push(href); ok {
-					c.Log.Printf("%s: added url '%s' to queue\n", c.Name, href)
-					// temp time var as time.Time value cannot be set to nil
-					// and we don't want to set URL.LastSaved and URL.LastChecked right now
-					var t time.Time
-					u := models.NewURL(href, t, t, c.isMarkedURL(href))
-					err = c.Models.URLs.Insert(u)
-					if err != nil {
-						c.Log.Fatalf(
-							"%s: failed to insert url '%s' to model: %v\n",
-							c.Name,
-							href,
-							err,
-						)
-					}
-					// if url is marked set value to true to fetch its content
-					if u.IsMonitored {
-						c.Queue.SetMapValue(href, true)
-					}
+			// if queue is empty wait for defaultSleepDuration; retry upto idle timeout before quitting
+			if errors.Is(err, queue.ErrEmptyQueue) {
+				if time.Since(startTime) > c.IdleTimeout {
+					c.Log.Printf("%s: Queue is empty, quitting.\n", c.Name)
+					return
 				}
+				time.Sleep(defaultSleepDuration)
+				continue
+			}
+
+			resp, err := getURL(urlpath, client)
+			if err != nil {
+				c.Log.Printf("%s: error in GET request: %v for url: '%s'\n", c.Name, err, urlpath)
+				// check that FailedRequests is not nil (when map is not initialised i.e. RetryTimes==0)
+				if c.FailedRequests != nil && c.FailedRequests[urlpath] < c.RetryTimes {
+					// and add the url back to queue
+					c.Queue.PushForce(urlpath)
+					c.FailedRequests[urlpath] += 1
+				}
+				continue
+			}
+
+			// if response not 200 OK
+			if resp.StatusCode != http.StatusOK {
+				c.Log.Printf(
+					"%s: invalid HTTP status code received %d for url: '%s'\n",
+					c.Name,
+					resp.StatusCode,
+					urlpath,
+				)
+				continue
+			}
+
+			doc, err := goquery.NewDocumentFromReader(resp.Body)
+			if err != nil {
+				c.Log.Printf("%s: could not read response body: %v", c.Name, err)
+				continue
+			}
+
+			// if status OK fetch all hrefs embedded in the page
+			hrefs, err := c.fetchEmbeddedURLs(doc)
+			if err != nil {
+				c.Log.Printf(
+					"%s: failed to fetch embedded URLs for URL '%s' : %v\n",
+					c.Name,
+					urlpath,
+					err,
+				)
+				continue
+			}
+
+			// go through fetched urls, if url not in queue(map) save to db and queue
+			for _, href := range hrefs {
+				if c.isValidURL(href) {
+					if ok := c.Queue.Push(href); ok {
+						c.Log.Printf("%s: added url '%s' to queue\n", c.Name, href)
+						// temp time var as time.Time value cannot be set to nil
+						// and we don't want to set URL.LastSaved and URL.LastChecked right now
+						var t time.Time
+						u := models.NewURL(href, t, t, c.isMarkedURL(href))
+						err = c.Models.URLs.Insert(u)
+						if err != nil {
+							c.Log.Fatalf(
+								"%s: failed to insert url '%s' to model: %v\n",
+								c.Name,
+								href,
+								err,
+							)
+						}
+						// if url is marked set value to true to fetch its content
+						if u.IsMonitored {
+							c.Queue.SetMapValue(href, true)
+						}
+					}
+				} else {
+					c.Log.Printf("%s: invalid url: %s\n", c.Name, href)
+					c.KnownInvalidURLs.cache.Store(href, true)
+				}
+			}
+
+			// map value of current URL
+			saveURLContent, err := c.Queue.GetMapValue(urlpath)
+			if errors.Is(err, queue.ErrItemNotFound) {
+				c.Log.Fatalf(
+					"%s: FATAL : URL not found in queue map '%s'. Quitting.\n",
+					c.Name,
+					urlpath,
+				)
+			}
+
+			// if current url is to be monitored OR marked, save content to DB and update url
+			if c.isMarkedURL(urlpath) || saveURLContent {
+				err = c.savePageContent(urlpath, doc)
+				if err != nil {
+					c.Log.Fatalln(err)
+				}
+				c.Log.Printf("%s: saved content of url '%s'\n", c.Name, urlpath)
+
+				// set key value to false as url is now processed
+				c.Queue.SetMapValue(urlpath, false)
 			} else {
-				c.Log.Printf("%s: invalid url: %s\n", c.Name, href)
-				c.KnownInvalidURLs.cache.Store(href, true)
+				// else update LastChecked field
+				err = c.updateLastCheckedDate(urlpath, time.Now())
+				if err != nil {
+					c.Log.Fatalln(err)
+				}
 			}
+
+			// close response body
+			resp.Body.Close()
+
+			// take rest for RequestDelay
+			time.Sleep(c.RequestDelay)
+
+			// reset startTime
+			startTime = time.Now()
 		}
-
-		// map value of current URL
-		saveURLContent, err := c.Queue.GetMapValue(urlpath)
-		if errors.Is(err, queue.ErrItemNotFound) {
-			c.Log.Fatalf(
-				"%s: FATAL : URL not found in queue map '%s'. Quitting.\n",
-				c.Name,
-				urlpath,
-			)
-		}
-
-		// if current url is to be monitored OR marked, save content to DB and update url
-		if c.isMarkedURL(urlpath) || saveURLContent {
-			err = c.savePageContent(urlpath, doc)
-			if err != nil {
-				c.Log.Fatalln(err)
-			}
-			c.Log.Printf("%s: saved content of url '%s'\n", c.Name, urlpath)
-
-			// set key value to false as url is now processed
-			c.Queue.SetMapValue(urlpath, false)
-		} else {
-			// else update LastChecked field
-			err = c.updateLastCheckedDate(urlpath, time.Now())
-			if err != nil {
-				c.Log.Fatalln(err)
-			}
-		}
-
-		// close response body
-		resp.Body.Close()
-
-		// take rest for RequestDelay
-		time.Sleep(c.RequestDelay)
-
-		// reset startTime
-		startTime = time.Now()
 	}
 }
 
