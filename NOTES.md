@@ -46,3 +46,15 @@ The `href` attribute of an `<a>` tag can contain a variety of values, which can 
     - Example: `<a href="#" onclick="alert('Hello')">Alert</a>`
 
 When developing or analyzing web crawlers, it's crucial to handle these different types appropriately, as they can impact how links are followed and indexed.
+
+SQL to get latest pages for is_monitored urls
+WITH LatestPages AS (
+    SELECT b.id, b.url_id, b.added_at,
+           ROW_NUMBER() OVER (PARTITION BY a.id ORDER BY b.added_at DESC) AS rn
+    FROM pages b
+    JOIN urls a ON b.url_id = a.id
+	WHERE a.is_monitored=true
+)
+SELECT *
+FROM LatestPages
+WHERE rn = 1;
