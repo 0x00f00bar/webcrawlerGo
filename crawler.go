@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/jimsmart/grobotstxt"
 
 	"github.com/0x00f00bar/web-crawler/internal"
 	"github.com/0x00f00bar/web-crawler/models"
@@ -53,6 +55,7 @@ type CrawlerConfig struct {
 	FailedRequests   map[string]int     // map to store failed requests stats
 	KnownInvalidURLs *InvalidURLCache   // known map of invalid URLs
 	Ctx              context.Context    // context to quit on SIGINT/SIGTERM
+	robotsTxt        *string            // robots.txt as string (internal)
 }
 
 // NewCrawler return pointer to a new Crawler
@@ -111,6 +114,14 @@ func validateConfig(cfg *CrawlerConfig) error {
 
 	if cfg.Log == nil {
 		cfg.Log = log.New(os.Stdout, "crawler", log.LstdFlags|log.Lshortfile)
+	}
+
+	if cfg.robotsTxt == nil {
+		robotTxt, err := getRobotsTxt(cfg.BaseURL, cfg.UserAgent)
+		if err != nil {
+			return err
+		}
+		cfg.robotsTxt = robotTxt
 	}
 
 	return nil
@@ -325,6 +336,7 @@ Rules:
   - Is not empty
   - Scheme is either HTTP/HTTPS
   - Not in ignore paths list
+  - Not Disallowed by robots.txt
 */
 func (c *Crawler) isValidURL(href string) bool {
 	// URL is not empty
@@ -354,6 +366,12 @@ func (c *Crawler) isValidURL(href string) bool {
 		return false
 	}
 
+	// check if path is allowed by robots.txt
+	if !grobotstxt.AgentAllowed(*c.robotsTxt, c.UserAgent, href) {
+		c.Log.Printf("%s: not allowed by robots.txt: %s\n", c.Name, href)
+		return false
+	}
+
 	return true
 }
 
@@ -372,4 +390,44 @@ func (c *Crawler) getURL(url string, client *http.Client) (*http.Response, error
 	req.Header.Set("User-Agent", c.UserAgent)
 
 	return client.Do(req)
+}
+
+// getRobotsTxt will return the <baseURL>/robots.txt file if found as string
+func getRobotsTxt(baseUrl *url.URL, userAgent string) (*string, error) {
+
+	urlString := fmt.Sprintf("%s://%s/robots.txt", baseUrl.Scheme, baseUrl.Host)
+	req, err := http.NewRequest(http.MethodGet, urlString, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("User-Agent", userAgent)
+	httpClient := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("could not get robots.txt, error: %v", err)
+	}
+
+	// following google's policy, failure when HTTP Status 429 or >= 500
+	// but following 10 redirections
+	// see: https://developers.google.com/search/docs/crawling-indexing/robots/robots_txt#http-status-codes
+	if resp.StatusCode == http.StatusTooManyRequests ||
+		resp.StatusCode >= http.StatusInternalServerError {
+		return nil, fmt.Errorf(
+			"could not get robots.txt, received HTTP status %d: %s",
+			resp.StatusCode,
+			http.StatusText(resp.StatusCode),
+		)
+	}
+
+	respBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error while reading robots.txt: %v", err)
+	}
+	defer resp.Body.Close()
+	robotsTxt := string(respBytes)
+
+	return &robotsTxt, nil
 }

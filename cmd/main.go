@@ -86,7 +86,7 @@ When empty, crawler will update monitored URLs from the model.`,
 	ignorePathList := flag.String(
 		"ignore",
 		"",
-		"Comma ',' seperated string of url paths to ignore.",
+		"Comma ',' seperated string of url patterns to ignore.",
 	)
 	retryFailedReq := flag.Int(
 		"retry",
@@ -151,11 +151,13 @@ twice after initial failure.`,
 		os.Exit(1)
 	}
 
-	fmt.Println(Red + "Flags parsed:" + Reset)
+	fmt.Println(Red + "Running crawler with the following options:" + Reset)
 	fmt.Printf(Cyan+"%-16s: %s\n", "Base URL", cmdArgs.baseURL.String())
+	fmt.Printf(Cyan+"%-16s: %s\n", "User-Agent", *cmdArgs.userAgent)
 	fmt.Printf("%-16s: %d day(s)\n", "Update interval", *cmdArgs.updateDaysPast)
 	fmt.Printf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " "))
-	fmt.Printf("%-16s: %d\n", "Crawlers count", *cmdArgs.nCrawlers)
+	fmt.Printf("%-16s: %s\n", "Ignored Pattern", strings.Join(cmdArgs.ignorePaths, " "))
+	fmt.Printf("%-16s: %d\n", "Crawler count", *cmdArgs.nCrawlers)
 	fmt.Printf("%-16s: %s\n", "Idle time", cmdArgs.idleTimeout)
 	fmt.Printf("%-16s: %s\n"+Reset, "Request delay", cmdArgs.reqDelay)
 
