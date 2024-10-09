@@ -34,7 +34,8 @@ var (
                                        `
 
 	// timeout used in http.Client and timeout while shutting down
-	defaultTimeout = 5 * time.Second
+	defaultTimeout   = 5 * time.Second
+	defaultUserAgent = fmt.Sprintf("web-crawler/v%s - Web-crawler in Go", version)
 )
 
 type cmdFlags struct {
@@ -44,6 +45,7 @@ type cmdFlags struct {
 	markedURLs     []string
 	ignorePaths    []string
 	dbDSN          *string
+	userAgent      *string
 	reqDelay       time.Duration
 	idleTimeout    time.Duration
 	retryTime      *int
@@ -67,6 +69,7 @@ func main() {
 		"",
 		"Absolute base URL to crawl (required).\nE.g. <http/https>://<domain-name>",
 	)
+	userAgent := flag.String("ua", defaultUserAgent, "User-Agent string to use while crawling\n")
 	reqDelay := flag.String("req-delay", "50ms", "Delay between subsequent requests.\nMin: 1ms")
 	dbDSN := flag.String("db-dsn", "", "PostgreSQL DSN (required)")
 	updateDaysPast := flag.Int(
@@ -131,6 +134,7 @@ twice after initial failure.`,
 		markedURLs:     markedURLSlice,
 		ignorePaths:    seperateCmdArgs(*ignorePathList),
 		dbDSN:          dbDSN,
+		userAgent:      userAgent,
 		reqDelay:       pRequestDelay,
 		idleTimeout:    pIdleTime,
 		retryTime:      retryFailedReq,
@@ -221,6 +225,7 @@ twice after initial failure.`,
 		Queue:            q,
 		Models:           &m,
 		BaseURL:          cmdArgs.baseURL,
+		UserAgent:        *cmdArgs.userAgent,
 		MarkedURLs:       cmdArgs.markedURLs,
 		IgnorePaths:      cmdArgs.ignorePaths,
 		RequestDelay:     cmdArgs.reqDelay,

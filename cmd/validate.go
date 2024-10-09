@@ -30,6 +30,9 @@ func validateFlags(v *internal.Validator, args *cmdFlags) {
 	// validate db-dsn
 	v.Check(*args.dbDSN != "", "db-dsn", "must be provided")
 
+	// validate user-agent
+	v.Check(*args.userAgent != "", "ua", "must be provided")
+
 	// validate request delay & idle-time
 	v.Check(args.reqDelay >= time.Microsecond, "req-delay", "cannot be less than 1ms")
 	v.Check(args.idleTimeout >= time.Second, "idle-time", "cannot be less than 1s")

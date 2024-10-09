@@ -43,6 +43,7 @@ type CrawlerConfig struct {
 	Queue            *queue.UniqueQueue // global queue
 	Models           *models.Models     // models to use
 	BaseURL          *url.URL           // base URL to crawl
+	UserAgent        string             // user-agent to use while crawling
 	MarkedURLs       []string           // marked URL to save to model
 	IgnorePaths      []string           // URL paths to ignore
 	RequestDelay     time.Duration      // delay between subsequent requests
@@ -138,7 +139,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 				continue
 			}
 
-			resp, err := getURL(urlpath, client)
+			resp, err := c.getURL(urlpath, client)
 			if err != nil {
 				c.Log.Printf("%s: error in GET request: %v for url: '%s'\n", c.Name, err, urlpath)
 				// check that FailedRequests is not nil (when map is not initialised i.e. RetryTimes==0)
@@ -359,4 +360,16 @@ func (c *Crawler) isValidURL(href string) bool {
 // isMarkedURL checks whether the href should be processed
 func (c *Crawler) isMarkedURL(href string) bool {
 	return internal.ContainsAny(href, c.MarkedURLs)
+}
+
+// getURL fetchs the URL with c.UserAgent
+func (c *Crawler) getURL(url string, client *http.Client) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("User-Agent", c.UserAgent)
+
+	return client.Do(req)
 }
