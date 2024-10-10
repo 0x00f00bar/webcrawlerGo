@@ -49,12 +49,15 @@ When developing or analyzing web crawlers, it's crucial to handle these differen
 
 SQL to get latest pages for is_monitored urls
 WITH LatestPages AS (
-    SELECT b.id, b.url_id, b.added_at,
-           ROW_NUMBER() OVER (PARTITION BY a.id ORDER BY b.added_at DESC) AS rn
-    FROM pages b
-    JOIN urls a ON b.url_id = a.id
-	WHERE a.is_monitored=true
+    SELECT u.url, p.id, p.added_at, p.url_id,
+           ROW_NUMBER() OVER (PARTITION BY u.id ORDER BY p.added_at DESC) AS rn
+    FROM pages p
+    JOIN urls u ON p.url_id = u.id
+	WHERE u.is_monitored=true and u.url like 'base-url%'
+	and u.url like '%sub-url-pattern%'
+	and p.added_at <= '2024-10-03 24:00:00'
 )
 SELECT *
 FROM LatestPages
-WHERE rn = 1;
+WHERE rn = 1
+LIMIT page_size OFFSET (page_number - 1) * page_size;
