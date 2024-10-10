@@ -47,7 +47,7 @@ type CrawlerConfig struct {
 	BaseURL          *url.URL           // base URL to crawl
 	UserAgent        string             // user-agent to use while crawling
 	MarkedURLs       []string           // marked URL to save to model
-	IgnorePaths      []string           // URL paths to ignore
+	IgnorePatterns   []string           // URL pattern to ignore
 	RequestDelay     time.Duration      // delay between subsequent requests
 	IdleTimeout      time.Duration      // timeout after which crawler quits when queue is empty
 	Log              *log.Logger        // logger to use
@@ -116,12 +116,18 @@ func validateConfig(cfg *CrawlerConfig) error {
 		cfg.Log = log.New(os.Stdout, "crawler", log.LstdFlags|log.Lshortfile)
 	}
 
+	// get robots.txt file
 	if cfg.robotsTxt == nil {
 		robotTxt, err := getRobotsTxt(cfg.BaseURL, cfg.UserAgent)
 		if err != nil {
 			return err
 		}
 		cfg.robotsTxt = robotTxt
+	}
+
+	// make a map of known invalid paths for efficient filtering
+	if cfg.KnownInvalidURLs == nil {
+		cfg.KnownInvalidURLs = &InvalidURLCache{}
 	}
 
 	return nil
@@ -152,7 +158,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 
 			resp, err := c.getURL(urlpath, client)
 			if err != nil {
-				c.Log.Printf("%s: error in GET request: %v for url: '%s'\n", c.Name, err, urlpath)
+				c.Log.Printf("%s: Error in GET request: %v for url: '%s'\n", c.Name, err, urlpath)
 				// check that FailedRequests is not nil (when map is not initialised i.e. RetryTimes==0)
 				if c.FailedRequests != nil && c.FailedRequests[urlpath] < c.RetryTimes {
 					// and add the url back to queue
@@ -165,7 +171,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 			// if response not 200 OK
 			if resp.StatusCode != http.StatusOK {
 				c.Log.Printf(
-					"%s: invalid HTTP status code received %d for url: '%s'\n",
+					"%s: Invalid HTTP status code received %d for url: '%s'\n",
 					c.Name,
 					resp.StatusCode,
 					urlpath,
@@ -175,7 +181,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 
 			doc, err := goquery.NewDocumentFromReader(resp.Body)
 			if err != nil {
-				c.Log.Printf("%s: could not read response body: %v", c.Name, err)
+				c.Log.Printf("%s: Could not read response body: %v", c.Name, err)
 				continue
 			}
 
@@ -183,7 +189,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 			hrefs, err := c.fetchEmbeddedURLs(doc)
 			if err != nil {
 				c.Log.Printf(
-					"%s: failed to fetch embedded URLs for URL '%s' : %v\n",
+					"%s: Failed to fetch embedded URLs for URL '%s' : %v\n",
 					c.Name,
 					urlpath,
 					err,
@@ -195,7 +201,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 			for _, href := range hrefs {
 				if c.isValidURL(href) {
 					if ok := c.Queue.Push(href); ok {
-						c.Log.Printf("%s: added url '%s' to queue\n", c.Name, href)
+						c.Log.Printf("%s: Added url '%s' to queue\n", c.Name, href)
 						// temp time var as time.Time value cannot be set to nil
 						// and we don't want to set URL.LastSaved and URL.LastChecked right now
 						var t time.Time
@@ -203,7 +209,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 						err = c.Models.URLs.Insert(u)
 						if err != nil {
 							c.Log.Fatalf(
-								"%s: failed to insert url '%s' to model: %v\n",
+								"%s: Failed to insert url '%s' to model: %v\n",
 								c.Name,
 								href,
 								err,
@@ -215,7 +221,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 						}
 					}
 				} else {
-					c.Log.Printf("%s: invalid url: %s\n", c.Name, href)
+					c.Log.Printf("%s: Invalid url: %s\n", c.Name, href)
 					c.KnownInvalidURLs.cache.Store(href, true)
 				}
 			}
@@ -236,7 +242,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 				if err != nil {
 					c.Log.Fatalln(err)
 				}
-				c.Log.Printf("%s: saved content of url '%s'\n", c.Name, urlpath)
+				c.Log.Printf("%s: Saved content of url '%s'\n", c.Name, urlpath)
 
 				// set key value to false as url is now processed
 				c.Queue.SetMapValue(urlpath, false)
@@ -273,7 +279,7 @@ func (c *Crawler) savePageContent(urlpath string, doc *goquery.Document) error {
 		return fmt.Errorf("%s: could not read page content: %v", c.Name, err)
 	}
 	if len(contentStr) < 100 {
-		c.Log.Fatalf("empty/no content. url: '%s'; len: %d", urlpath, len(contentStr))
+		c.Log.Fatalf("Empty/no content. url: '%s'; len: %d", urlpath, len(contentStr))
 	}
 	newPage := models.NewPage(uModel.ID, contentStr)
 	if err = c.Models.Pages.Insert(newPage); err != nil {
@@ -362,13 +368,13 @@ func (c *Crawler) isValidURL(href string) bool {
 	}
 
 	// check if path in ignore paths list
-	if internal.ContainsAny(parsedURL.Path, c.IgnorePaths) {
+	if internal.ContainsAny(parsedURL.Path, c.IgnorePatterns) {
 		return false
 	}
 
 	// check if path is allowed by robots.txt
 	if !grobotstxt.AgentAllowed(*c.robotsTxt, c.UserAgent, href) {
-		c.Log.Printf("%s: not allowed by robots.txt: %s\n", c.Name, href)
+		c.Log.Printf("%s: Not allowed by robots.txt: %s\n", c.Name, href)
 		return false
 	}
 
