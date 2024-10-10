@@ -2,6 +2,7 @@ package internal
 
 import (
 	"net/url"
+	"os"
 	"strings"
 )
 
@@ -51,4 +52,15 @@ func ContainsAny(str string, substrings []string) bool {
 		}
 	}
 	return false
+}
+
+// CreateDirIfNotExists will create a directory at path if
+// it doesn't exist using os.MkdirAll
+func CreateDirIfNotExists(path string) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		err = os.MkdirAll(path, 0744)
+		if err != nil {
+			panic(err)
+		}
+	}
 }
