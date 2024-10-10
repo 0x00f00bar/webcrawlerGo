@@ -25,12 +25,7 @@ var (
 
 func init() {
 	// make a folder to store logs
-	if _, err := os.Stat(logFolderName); os.IsNotExist(err) {
-		err = os.Mkdir(logFolderName, 0755)
-		if err != nil {
-			panic(err)
-		}
-	}
+	internal.CreateDirIfNotExists(logFolderName)
 }
 
 // initialiseLogger returns a log file handle f and a MultiWriter logger (os.Stdout & f)
@@ -92,20 +87,20 @@ func getMarkedURLS(mURLStr string) []string {
 }
 
 // seperateCmdArgs returns string slice of comma seperated cmd args
-func seperateCmdArgs(mURLStr string) []string {
-	markedURLs := []string{}
-	mURLStr = strings.TrimSpace(mURLStr)
+func seperateCmdArgs(args string) []string {
+	argList := []string{}
+	args = strings.TrimSpace(args)
 
-	if mURLStr == "" {
-		return markedURLs
+	if args == "" {
+		return argList
 	}
 
-	if strings.Contains(mURLStr, ",") {
-		markedURLs = strings.Split(mURLStr, ",")
+	if strings.Contains(args, ",") {
+		argList = strings.Split(args, ",")
 	} else {
-		markedURLs = append(markedURLs, mURLStr)
+		argList = append(argList, args)
 	}
-	return markedURLs
+	return argList
 }
 
 // loadUrlsToQueue fetches all urls from URL model and loads them to queue.
@@ -135,7 +130,7 @@ func loadUrlsToQueue(
 
 			parsedUrlDB, err := url.Parse(urlDB.URL)
 			if err != nil {
-				logger.Printf("unable to parse url '%s' from model URLs\n", urlDB.URL)
+				logger.Printf("Unable to parse url '%s' from model URLs\n", urlDB.URL)
 			}
 			// only process URLs belonging to baseURL
 			if parsedUrlDB.Hostname() == baseURL.Hostname() {
@@ -156,7 +151,7 @@ func loadUrlsToQueue(
 					urlDB.IsMonitored = true
 					err := m.URLs.Update(urlDB)
 					if err != nil {
-						logger.Fatalf("unable to update model for url '%s': %v\n", urlDB.URL, err)
+						logger.Fatalf("Unable to update model for url '%s': %v\n", urlDB.URL, err)
 					}
 
 				// else just add to map with false value to not access that URL
