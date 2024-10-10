@@ -27,3 +27,4 @@ go.work
 #misc
 *.log
 .vscode
+*.html

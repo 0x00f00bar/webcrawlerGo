@@ -15,20 +15,31 @@ Requires PostgreSQL.
     -baseurl string
         Absolute base URL to crawl (required).
         E.g. <http/https>://<domain-name>
+    -date string
+        Cut-off date upto which the latest crawled pages will be saved to disk.
+        Format: YYYY-MM-DD. Applicable only with 'save' flag.
+        (default "2024-10-09")
     -days int
         Days past which monitored URLs should be updated (default 1)
     -db-dsn string
         PostgreSQL DSN (required)
+    -db2disk
+        Use this flag to write the latest crawled content to disk.
+        Customise using arguments 'path' and 'date'.
+        Crawler will exit after saving to disk.
     -idle-time string
         Idle time after which crawler quits when queue is empty.
         Min: 1s (default "10s")
     -ignore string
-        Comma ',' seperated string of url paths to ignore.
+        Comma ',' seperated string of url patterns to ignore.
     -murls string
         Comma ',' seperated string of marked url paths to save/update.
         When empty, crawler will update monitored URLs from the model.
     -n int
         Number of crawlers to invoke (default 10)
+    -path string
+        Output path to save the content of crawled web pages.
+        Applicable only with 'save' flag. (default "./OUT/2024-10-10_19-40-41")
     -req-delay string
         Delay between subsequent requests.
         Min: 1ms (default "50ms")
@@ -36,6 +47,9 @@ Requires PostgreSQL.
         Number of times to retry failed GET requests.
         With retry=2, crawlers will retry the failed GET urls
         twice after initial failure. (default 2)
+    -ua string
+        User-Agent string to use while crawling
+        (default "web-crawler/v0.5.0 - Web-crawler in Go")
     -v  Display app version
 
   Note: 

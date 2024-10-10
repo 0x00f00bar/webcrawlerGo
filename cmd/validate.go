@@ -43,4 +43,10 @@ func validateFlags(v *internal.Validator, args *cmdFlags) {
 		"retry",
 		fmt.Sprintf("invalid retry time: %d. Should be >= 0.", *args.retryTime),
 	)
+
+	// validate cut-off date when save to disk flag is true
+	if args.dbToDisk {
+		v.Check(args.cutOffDate.Before(time.Now()), "date", "cannot be after today")
+		v.Check(args.savePath != "", "path", "must be provided with 'db2disk' flag")
+	}
 }
