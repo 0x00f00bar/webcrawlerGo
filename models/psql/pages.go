@@ -5,15 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/0x00f00bar/web-crawler/models"
 )
 
-var (
-	validPageColumns = []string{"id", "url_id", "added_at", "content"}
-	defaultTimeout   = 5 * time.Second
-)
+var validPageColumns = []string{"id", "url_id", "added_at", "content"}
 
 // pageDB is used to implement PageModel interface
 type pageDB struct {

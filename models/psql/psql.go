@@ -2,7 +2,10 @@ package psql
 
 import (
 	"database/sql"
+	"time"
 )
+
+var defaultTimeout = 5 * time.Second
 
 type PsqlDB struct {
 	URLModel  *urlDB
