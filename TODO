@@ -7,12 +7,13 @@ TODO
 - [x] There might be a case when the marked url is different from url fetched from db, and db entry isMonitored is set to true, decide what2do -> saving both if same baseURL
 - [x] extended href validation required, way to ignore urls -> list of strings to check if present, ignore
 - [x] add flag to blacklist/whitelist urls based on 1) Content-Type, Content-Length header and 2) file extensions -> handled by ignore list
-- [ ] make marked-url mandatory?; '*' as wildcard to fetch all pages?
+- [ ] make marked-url mandatory? no; '*' as wildcard to fetch all pages?
 - [x] maintain a ignored hash map
-- [ ] implement models for SQLite v0.8.0
 - [x] graceful exit v0.5.0
-- [ ] write the web UI to view and manage 'URLs' and 'Pages' models v0.9.0
-- [ ] scrolling logs v0.7.0
 - [x] write monitored urls to files v0.6.0, in: date, path, out
 - [x] parse website robots.txt, add disallow paths to ignore list v0.6.0
 - [x] take user agent from cmd args v0.6.0
+- [ ] implement models for SQLite v0.7.0 // find citext alternative: name TEXT COLLATE NOCASE
+- [ ] scrolling logs? v0.8.0
+- [ ] auto migrate using go-migrate/query v0.8.0
+- [ ] write the web UI to view and manage 'URLs' and 'Pages' models v0.9.0

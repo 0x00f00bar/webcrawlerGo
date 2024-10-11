@@ -61,3 +61,28 @@ SELECT *
 FROM LatestPages
 WHERE rn = 1
 LIMIT page_size OFFSET (page_number - 1) * page_size;
+
+db settings for sqlite
+SetMaxOpenConns(1)
+SetMaxIdleConns(2)
+SetConnMaxIdleTime(5 * time.Minute)
+Read:
+https://www.reddit.com/r/golang/comments/16xswxd/concurrency_when_writing_data_into_sqlite/
+https://github.com/mattn/go-sqlite3/issues/1022#issuecomment-1067353980
+https://www.golang.dk/articles/go-and-sqlite-in-the-cloud
+https://www.golang.dk/articles/benchmarking-sqlite-performance-in-go
+https://turriate.com/articles/making-sqlite-faster-in-go
+https://github.com/kalafut/go-sqlite-bench
+https://detunized.net/posts/2019-04-01-telegram-bot-in-go-concurrent-sqlite/
+https://turso.tech/blog/something-you-probably-want-to-know-about-if-youre-using-sqlite-in-golang-72547ad625f1
+https://gist.github.com/markuswustenberg/f35ab7e191137dca5f7ec112bfc887be?permalink_comment_id=4396598
+https://sqlite.org/wal.html
+https://phiresky.github.io/blog/2020/sqlite-performance-tuning/
+https://pkg.go.dev/search?q=sqlite3&m=package
+https://news.ycombinator.com/item?id=33894995
+https://www.youtube.com/watch?v=XcAYkriuQ1o
+https://www.joseferben.com/posts/3-things-that-surprised-me-while-running-sqlite-in-production
+https://news.ycombinator.com/item?id=36579347
+https://sqlite.org/docs.html
+Fun:
+https://www.reddit.com/r/cprogramming/comments/sukt3r/comment/hxcectu/

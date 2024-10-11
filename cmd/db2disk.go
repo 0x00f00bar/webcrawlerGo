@@ -105,7 +105,7 @@ func saveDbContentToDisk(
 		logger.Println(msg)
 		totalPages := int(math.Ceil(float64(recordCount) / float64(defaultPageSize)))
 
-		for page := range totalPages {
+		for pageNum := range totalPages {
 			// get pages
 			pageContents, err := getContentPage(
 				ctx,
@@ -115,7 +115,7 @@ func saveDbContentToDisk(
 				markedURL,
 				cutOffDate,
 				defaultPageSize,
-				page+1,
+				pageNum+1,
 			)
 			if err != nil {
 				return err
