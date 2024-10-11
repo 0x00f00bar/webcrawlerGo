@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_page_url_id ON pages(url_id);

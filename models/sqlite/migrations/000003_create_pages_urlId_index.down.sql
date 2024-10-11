@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_page_url_id;
