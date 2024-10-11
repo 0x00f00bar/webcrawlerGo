@@ -64,6 +64,8 @@ func main() {
 	fmt.Println(Red + banner + Reset)
 	fmt.Printf(Cyan+"v%s\n\n"+Reset, version)
 
+	// define cmd args; usage message is formatted for better visibility on standard
+	// terminal width of 80 chars
 	printVersion := flag.Bool("v", false, "Display app version")
 	nCrawlers := flag.Int("n", 10, "Number of crawlers to invoke")
 	idleTimeout := flag.String(
@@ -88,6 +90,8 @@ func main() {
 		"murls",
 		"",
 		`Comma ',' seperated string of marked url paths to save/update.
+If the marked path is unmonitored in the database, the crawler
+will mark the URL as monitored.
 When empty, crawler will update monitored URLs from the model.`,
 	)
 	ignorePatternList := flag.String(

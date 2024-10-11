@@ -20,7 +20,7 @@ func ValuePresent(needle string, haystack []string) bool {
 //
 // e.g.
 //
-// <http/https>://google.com/query -> true
+// <http|https>://google.com/query -> true
 //
 // /query -> false
 func IsAbsoluteURL(href string) bool {

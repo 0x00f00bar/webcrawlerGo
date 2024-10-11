@@ -9,6 +9,7 @@ var (
 	ErrInvalidOrderBy = errors.New("models: invalid order by")
 )
 
+// Models embeds URLModel and PageModel interface
 type Models struct {
 	URLs  URLModel
 	Pages PageModel

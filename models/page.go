@@ -4,6 +4,8 @@ import (
 	"time"
 )
 
+// Page type holds the information of URL content
+// saved in model
 type Page struct {
 	ID      uint
 	URLID   uint
@@ -12,7 +14,6 @@ type Page struct {
 }
 
 // NewPage returns new Page type with AddedAt set to current time.
-// Update fields as required before saving the model.
 func NewPage(urlId uint, content string) *Page {
 	return &Page{
 		URLID:   urlId,
