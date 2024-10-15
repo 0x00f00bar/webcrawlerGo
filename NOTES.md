@@ -84,5 +84,14 @@ https://www.youtube.com/watch?v=XcAYkriuQ1o
 https://www.joseferben.com/posts/3-things-that-surprised-me-while-running-sqlite-in-production
 https://news.ycombinator.com/item?id=36579347
 https://sqlite.org/docs.html
+https://kerkour.com/sqlite-for-servers
+https://www.powersync.com/blog/sqlite-optimizations-for-ultra-high-performance
 Fun:
 https://www.reddit.com/r/cprogramming/comments/sukt3r/comment/hxcectu/
+
+SQLite config:
+PRAGMA busy_timeout=5000; // for every connection
+PRAGMA journal_mode=wal;
+PRAGMA synchronous=1;
+PRAGMA foreign_keys=on;  // for every connection
+Use IMMEDIATE transactions
