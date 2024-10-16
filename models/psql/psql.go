@@ -2,10 +2,11 @@ package psql
 
 import (
 	"database/sql"
-	"time"
-)
+	"fmt"
+	"strings"
 
-var defaultTimeout = 5 * time.Second
+	"github.com/0x00f00bar/web-crawler/models"
+)
 
 type PsqlDB struct {
 	URLModel  *urlDB
@@ -18,4 +19,15 @@ func NewPsqlDB(db *sql.DB) *PsqlDB {
 		URLModel:  newUrlDB(db),
 		PageModel: newPageDB(db),
 	}
+}
+
+// makePgSQLQuery converts general SQL query to
+// PgSQL dialect query by replacing replaceStr in query
+func makePgSQLQuery(query string) string {
+	argCount := strings.Count(query, models.QueryArgStr)
+	for i := range argCount {
+		argStr := fmt.Sprintf("$%d", i+1)
+		query = strings.Replace(query, models.QueryArgStr, argStr, 1)
+	}
+	return query
 }
