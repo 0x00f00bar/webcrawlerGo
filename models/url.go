@@ -1,7 +1,42 @@
 package models
 
 import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
 	"time"
+)
+
+var URLColumns = []string{
+	"id", "url", "first_encountered", "last_checked",
+	"last_saved", "is_monitored", "version",
+}
+
+// Queries related to urls table
+const (
+	QuerySelectURL   = "SELECT id, url, first_encountered, last_checked, last_saved, is_monitored, version FROM urls"
+	QueryGetURLById  = QuerySelectURL + " WHERE id = __ARG__"
+	QueryGetURLByURL = QuerySelectURL + " WHERE url = __ARG__"
+	QueryInsertURL   = `
+	INSERT INTO urls (url, last_checked, last_saved, is_monitored)
+	VALUES (__ARG__, __ARG__, __ARG__, __ARG__)
+	RETURNING id, first_encountered, version`
+	QueryUpdateURL = `
+	UPDATE urls
+	SET last_checked = __ARG__, last_saved = __ARG__, is_monitored = __ARG__, version = version + 1
+	WHERE id = __ARG__ AND version = __ARG__
+	RETURNING version`
+	QueryDeleteURL = `DELETE from urls WHERE id = __ARG__`
+	QueryGetAllURL = `
+	SELECT id, url, first_encountered, last_checked, last_saved, is_monitored, version
+	FROM urls
+	ORDER BY __ARG__`
+	QueryGetAllMonitoredURL = `
+	SELECT id, url, first_encountered, last_checked, last_saved, is_monitored, version
+	FROM urls
+	WHERE is_monitored = true
+	ORDER BY __ARG__`
 )
 
 // URL type holds the information of URL
@@ -25,4 +60,167 @@ func NewURL(url string, lastChecked, lastSaved time.Time, isMonitored bool) *URL
 		LastSaved:        lastSaved,
 		IsMonitored:      isMonitored,
 	}
+}
+
+// URLGetById fetches a row from urls table by id
+func URLGetById(id int, query string, db *sql.DB) (*URL, error) {
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultDBTimeout)
+	defer cancel()
+
+	var url URL
+
+	err := db.QueryRowContext(ctx, query, id).Scan(
+		&url.ID,
+		&url.FirstEncountered,
+		&url.LastChecked,
+		&url.LastSaved,
+		&url.IsMonitored,
+		&url.Version,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+	return &url, nil
+}
+
+// URLGetByURL fetches a row from urls table by url string
+func URLGetByURL(urlStr string, query string, db *sql.DB) (*URL, error) {
+	if urlStr == "" {
+		return nil, ErrNullURL
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultDBTimeout)
+	defer cancel()
+
+	var url URL
+
+	err := db.QueryRowContext(ctx, query, urlStr).Scan(
+		&url.ID,
+		&url.URL,
+		&url.FirstEncountered,
+		&url.LastChecked,
+		&url.LastSaved,
+		&url.IsMonitored,
+		&url.Version,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+	return &url, nil
+}
+
+// URLInsert writes a url to urls table
+func URLInsert(m *URL, query string, db *sql.DB) error {
+
+	args := []interface{}{m.URL, m.LastChecked, m.LastSaved, m.IsMonitored}
+
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultDBTimeout)
+	defer cancel()
+
+	return db.QueryRowContext(ctx, query, args...).Scan(&m.ID, &m.FirstEncountered, &m.Version)
+}
+
+// URLUpdate updates a url with provided values.
+// Optimistic locking enabled: if version change detected
+// return ErrEditConflict
+func URLUpdate(m *URL, query string, db *sql.DB) error {
+
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultDBTimeout)
+	defer cancel()
+
+	args := []interface{}{m.LastChecked, m.LastSaved, m.IsMonitored, m.ID, m.Version}
+
+	err := db.QueryRowContext(ctx, query, args...).Scan(&m.Version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict
+		default:
+			return err
+		}
+	}
+	return nil
+}
+
+// URLDelete url row by id
+func URLDelete(id int, query string, db *sql.DB) error {
+	if id < 1 {
+		return ErrRecordNotFound
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultDBTimeout)
+	defer cancel()
+
+	result, err := db.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+
+	return nil
+}
+
+// URLGetAll fetches all rows from urls table in orderBy order
+func URLGetAll(orderBy string, query string, db *sql.DB) ([]*URL, error) {
+	if !ValidOrderBy(orderBy, URLColumns) {
+		return nil, fmt.Errorf("%w : %s", ErrInvalidOrderBy, orderBy)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultDBTimeout)
+	defer cancel()
+
+	rows, err := db.QueryContext(ctx, query, orderBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	urls := []*URL{}
+
+	for rows.Next() {
+
+		var url URL
+
+		err = rows.Scan(
+			&url.ID,
+			&url.URL,
+			&url.FirstEncountered,
+			&url.LastChecked,
+			&url.LastSaved,
+			&url.IsMonitored,
+			&url.Version,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		urls = append(urls, &url)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return urls, nil
 }
