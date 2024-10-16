@@ -2,25 +2,16 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"io"
 	"log"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/0x00f00bar/web-crawler/internal"
 	"github.com/0x00f00bar/web-crawler/models"
 	"github.com/0x00f00bar/web-crawler/queue"
-)
-
-var (
-	logFolderName         = "logs"
-	dbMaxConnIdleDuration = 15 * time.Minute
-	dbMaxOpenConn         = 25
-	dbMaxIdleConn         = 25
 )
 
 func init() {
@@ -42,81 +33,20 @@ func initialiseLogger() (f *os.File, logger *log.Logger) {
 	return f, log.New(io.MultiWriter(os.Stdout, f), "", log.LstdFlags|log.Lshortfile)
 }
 
-// openDB opens and tests a connection to database identified
-// by the dsn string (only psql for now)
-func openDB(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("postgres", dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	// setup db max connection idle time
-	db.SetConnMaxIdleTime(dbMaxConnIdleDuration)
-
-	// setup db max connections
-	db.SetMaxOpenConns(dbMaxOpenConn)
-
-	// setup db max idle connection
-	db.SetMaxIdleConns(dbMaxIdleConn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err = db.PingContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return db, nil
-}
-
-// getMarkedURLS returns a slice of marked urls starting with '/'
-func getMarkedURLS(mURLStr string) []string {
-	// return empty slice when no marked urls
-	markedURLs := seperateCmdArgs(mURLStr)
-
-	// add leading '/' if not present
-	for i, mUrl := range markedURLs {
-		mUrl = strings.TrimSpace(mUrl)
-		if mUrl[0] != '/' {
-			mUrl = "/" + mUrl
-		}
-		markedURLs[i] = mUrl
-	}
-
-	return markedURLs
-}
-
-// seperateCmdArgs returns string slice of comma seperated cmd args
-func seperateCmdArgs(args string) []string {
-	argList := []string{}
-	args = strings.TrimSpace(args)
-
-	if args == "" {
-		return argList
-	}
-
-	if strings.Contains(args, ",") {
-		argList = strings.Split(args, ",")
-	} else {
-		argList = append(argList, args)
-	}
-	return argList
-}
-
 // loadUrlsToQueue fetches all urls from URL model and loads them to queue.
 // Returns the number of URLs pushed to queue
 func loadUrlsToQueue(
 	ctx context.Context,
 	baseURL url.URL,
 	q *queue.UniqueQueue,
-	m *models.Models,
+	m models.URLModel,
 	updateInterval int,
 	logger *log.Logger,
 	markedURLs []string,
 ) int {
-	dburls, err := m.URLs.GetAll("is_monitored")
+	dburls, err := m.GetAll("is_monitored")
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	intervalDuration, _ := time.ParseDuration(fmt.Sprintf("%dh", updateInterval*24))
 	currentTime := time.Now()
@@ -149,7 +79,7 @@ func loadUrlsToQueue(
 					fetchContent = true
 					// mark url as monitored as if marked
 					urlDB.IsMonitored = true
-					err := m.URLs.Update(urlDB)
+					err := m.Update(urlDB)
 					if err != nil {
 						logger.Fatalf("Unable to update model for url '%s': %v\n", urlDB.URL, err)
 					}
