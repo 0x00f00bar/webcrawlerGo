@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/0x00f00bar/web-crawler/models"
+	"github.com/0x00f00bar/webcrawlerGo/models"
 )
 
 type PsqlDB struct {

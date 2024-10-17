@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/0x00f00bar/web-crawler/internal"
+	"github.com/0x00f00bar/webcrawlerGo/internal"
 )
 
 // ValidOrderBy tells if the orderBy is present in validFields

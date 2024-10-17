@@ -3,7 +3,7 @@ package psql
 import (
 	"database/sql"
 
-	"github.com/0x00f00bar/web-crawler/models"
+	"github.com/0x00f00bar/webcrawlerGo/models"
 )
 
 // urlDB is used to implement URLModel interface

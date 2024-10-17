@@ -9,9 +9,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/0x00f00bar/web-crawler/internal"
-	"github.com/0x00f00bar/web-crawler/models"
-	"github.com/0x00f00bar/web-crawler/queue"
+	"github.com/0x00f00bar/webcrawlerGo/internal"
+	"github.com/0x00f00bar/webcrawlerGo/models"
+	"github.com/0x00f00bar/webcrawlerGo/queue"
 )
 
 func init() {

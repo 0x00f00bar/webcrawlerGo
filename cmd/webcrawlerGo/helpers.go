@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/0x00f00bar/web-crawler/queue"
+	"github.com/0x00f00bar/webcrawlerGo/queue"
 )
 
 // getMarkedURLS returns a slice of marked urls starting with '/'

@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"strings"
 
-	"github.com/0x00f00bar/web-crawler/models"
+	"github.com/0x00f00bar/webcrawlerGo/models"
 )
 
 // sqliteConnections holds seperate connections to multiple readers

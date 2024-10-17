@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0x00f00bar/web-crawler/internal"
+	"github.com/0x00f00bar/webcrawlerGo/internal"
 )
 
 func validateFlags(v *internal.Validator, args *cmdFlags) {

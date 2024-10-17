@@ -1,4 +1,4 @@
-module github.com/0x00f00bar/web-crawler
+module github.com/0x00f00bar/webcrawlerGo
 
 go 1.23.1
 

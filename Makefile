@@ -3,7 +3,11 @@ include .env
 # export $(shell sed 's/=.*//' .env)
 run:
 	@echo "Executing go run ..."
-	@go run cmd/webcrawlerGo/* -baseurl=$(BASEURL) -db-dsn="$(DB_DSN)"
+	@go run ./cmd/webcrawlerGo/ -baseurl=$(BASEURL) -db-dsn="$(DB_DSN)"
+
+build:
+	@echo "Executing go build ..."
+	@CGO_ENABLED=1 go build ./cmd/webcrawlerGo/
 
 migrate-up:
 	@echo "Migrating up ..."

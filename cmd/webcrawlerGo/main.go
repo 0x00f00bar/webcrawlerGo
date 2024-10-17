@@ -11,12 +11,12 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 
-	webcrawler "github.com/0x00f00bar/web-crawler"
-	"github.com/0x00f00bar/web-crawler/internal"
-	"github.com/0x00f00bar/web-crawler/models"
-	"github.com/0x00f00bar/web-crawler/models/psql"
-	"github.com/0x00f00bar/web-crawler/models/sqlite"
-	"github.com/0x00f00bar/web-crawler/queue"
+	webcrawler "github.com/0x00f00bar/webcrawlerGo"
+	"github.com/0x00f00bar/webcrawlerGo/internal"
+	"github.com/0x00f00bar/webcrawlerGo/models"
+	"github.com/0x00f00bar/webcrawlerGo/models/psql"
+	"github.com/0x00f00bar/webcrawlerGo/models/sqlite"
+	"github.com/0x00f00bar/webcrawlerGo/queue"
 )
 
 var (
