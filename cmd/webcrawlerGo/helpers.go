@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -61,4 +62,11 @@ func listenForSignals(cancel context.CancelFunc, queue *queue.UniqueQueue, logge
 	logger.Printf("%s signal received", s.String())
 	logger.Printf("Will shutdown in %s\n", timeOut.String())
 	time.Sleep(timeOut)
+}
+
+func printBanner() {
+	fmt.Printf(Cyan + "\nWho are we?      : " + Red + "web crawlers!" + Reset)
+	fmt.Printf(Cyan + "\nWhat do we want? : " + Red + "To crawl the web!" + Reset)
+	fmt.Println(Red + banner + Reset)
+	fmt.Printf(Cyan+"v%s\n\n"+Reset, version)
 }

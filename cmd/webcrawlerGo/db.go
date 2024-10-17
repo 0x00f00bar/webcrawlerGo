@@ -22,6 +22,22 @@ type dbConfig struct {
 	ConnMaxIdleTime time.Duration
 }
 
+const (
+	driverNamePgSQL  = "postgres"
+	driverNameSQLite = "sqlite3"
+	sqliteDBName     = "crawler.db"
+)
+
+var sqliteDBWriterArgs = []string{
+	"_busy_timeout=5000",
+	"_foreign_keys=1",
+	"_journal_mode=WAL",
+	"mode=rwc",
+	"_synchronous=1",
+	"_loc=auto",
+}
+var sqliteDBReaderArgs = []string{"_foreign_keys=1", "mode=ro", "_loc=auto"}
+
 // openDB opens and tests a connection to database identified
 // by the dsn string using driver
 func openDB(driver string, dsn string, dbConfig *dbConfig) (*sql.DB, error) {
@@ -74,6 +90,78 @@ func closeDBConns(dbConns []*sql.DB) {
 	for _, dbConn := range dbConns {
 		dbConn.Close()
 	}
+}
+
+// getDBConnections will create, test and return db connection(s)
+// based on dsn
+func getDBConnections(
+	dsn string,
+	logger *log.Logger,
+) (driverName string, dbConns []*sql.DB, err error) {
+	// driver used for db connection
+	// var driverName string
+	// actual db connection(s)
+	// var dbConns []*sql.DB
+
+	// db config for different connections
+	var dbConfs []*dbConfig
+	// db connection DNSs
+	var dbConnDSNs []string
+
+	// when DSN is empty use sqlite3 driver
+	if dsn == "" {
+		logger.Println("Using sqlite3 driver")
+		driverName = driverNameSQLite
+
+		// writer config and dsn
+		dbconfWriter := &dbConfig{
+			MaxOpenConns:    1,
+			MaxIdleConns:    2,
+			ConnMaxIdleTime: dbMaxConnIdleDuration,
+		}
+		writerDSN := fmt.Sprintf(
+			"file:./%s?%s",
+			sqliteDBName,
+			strings.Join(sqliteDBWriterArgs, "&"),
+		)
+
+		// reader config and dsn
+		dbconfReader := &dbConfig{
+			MaxOpenConns:    dbMaxOpenConn,
+			MaxIdleConns:    dbMaxIdleConn,
+			ConnMaxIdleTime: dbMaxConnIdleDuration,
+		}
+		readerDSN := fmt.Sprintf(
+			"file:./%s?%s",
+			sqliteDBName,
+			strings.Join(sqliteDBReaderArgs, "&"),
+		)
+
+		// keep reader first and writer second as this will
+		// enable sqlite to clean up properly after connection closure
+		// writer should be the last one to close the connection
+		dbConfs = append(dbConfs, dbconfReader, dbconfWriter)
+		dbConnDSNs = append(dbConnDSNs, readerDSN, writerDSN)
+
+	} else if strings.Contains(dsn, "postgres") {
+		logger.Println("Using postgres driver")
+		driverName = driverNamePgSQL
+
+		dbconf := &dbConfig{
+			MaxOpenConns:    dbMaxOpenConn,
+			MaxIdleConns:    dbMaxIdleConn,
+			ConnMaxIdleTime: dbMaxConnIdleDuration,
+		}
+
+		dbConfs = append(dbConfs, dbconf)
+		dbConnDSNs = append(dbConnDSNs, dsn)
+	}
+	dbConns, err = openDBConns(driverName, dbConnDSNs, dbConfs)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return driverName, dbConns, nil
 }
 
 // saveDbContentToDisk copies page model's content field from DB to disk at path

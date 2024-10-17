@@ -1,69 +1,35 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
-	"log"
-	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
 	"strings"
-	"sync"
-	"syscall"
 	"time"
 
-	_ "github.com/lib/pq"
-
-	webcrawler "github.com/0x00f00bar/web-crawler"
 	"github.com/0x00f00bar/web-crawler/internal"
-	"github.com/0x00f00bar/web-crawler/models"
-	"github.com/0x00f00bar/web-crawler/models/psql"
-	"github.com/0x00f00bar/web-crawler/queue"
-)
-
-var (
-	version = "0.6.0"
-	banner  = `
-                            __         
-  ______________ __      __/ /__  _____
- / ___/ ___/ __ '/ | /| / / / _ \/ ___/
-/ /__/ /  / /_/ /| |/ |/ / /  __/ /    
-\___/_/   \__,_/ |__/|__/_/\___/_/     
-                                       `
-
-	// timeout used in http.Client and timeout while shutting down
-	defaultTimeout    = 5 * time.Second
-	defaultUserAgent  = fmt.Sprintf("web-crawler/v%s - Web-crawler in Go", version)
-	defaultSavePath   = fmt.Sprintf("./OUT/%s", time.Now().Format("2006-01-02_15-04-05"))
-	dateLayout        = "2006-01-02"
-	timeStampLayout   = dateLayout + "_15-04-05"
-	defaultCutOffDate = fmt.Sprint(time.Now().AddDate(0, 0, -1).Format(dateLayout))
 )
 
 type cmdFlags struct {
-	nCrawlers      *int
-	baseURL        *url.URL
-	updateDaysPast *int
-	markedURLs     []string
-	ignorePattern  []string
-	dbDSN          *string
-	userAgent      *string
-	reqDelay       time.Duration
-	idleTimeout    time.Duration
-	retryTime      *int
-	dbToDisk       bool
-	savePath       string
-	cutOffDate     time.Time
+	baseURL        *url.URL      // -baseurl
+	cutOffDate     time.Time     // -date
+	updateDaysPast *int          // -days
+	dbDSN          *string       // -db-dsn
+	dbToDisk       bool          // -db2disk
+	idleTimeout    time.Duration // -idle-time
+	ignorePattern  []string      // -ignore
+	markedURLs     []string      // -murls
+	nCrawlers      *int          // -n
+	savePath       string        // -path
+	reqDelay       time.Duration // -req-delay
+	retryTime      *int          // -retry
+	userAgent      *string       // -ua
 }
 
-func main() {
-	fmt.Printf(Cyan + "\nWho are we?      : " + Red + "web crawlers!" + Reset)
-	fmt.Printf(Cyan + "\nWhat do we want? : " + Red + "To crawl the web!" + Reset)
-	fmt.Println(Red + banner + Reset)
-	fmt.Printf(Cyan+"v%s\n\n"+Reset, version)
-
+// pargeCmdFlags will parse cmd flags and validate them.
+// Validation failure will exit the program.
+func pargeCmdFlags(v *internal.Validator) *cmdFlags {
 	// define cmd args; usage message is formatted for better visibility on standard
 	// terminal width of 80 chars
 	printVersion := flag.Bool("v", false, "Display app version")
@@ -80,7 +46,12 @@ func main() {
 	)
 	userAgent := flag.String("ua", defaultUserAgent, "User-Agent string to use while crawling\n")
 	reqDelay := flag.String("req-delay", "50ms", "Delay between subsequent requests.\nMin: 1ms")
-	dbDSN := flag.String("db-dsn", "", "PostgreSQL DSN (required)")
+	dbDSN := flag.String(
+		"db-dsn",
+		"",
+		"DSN string to database.\nSupported DSN: PostgreSQL DSN (optional)."+`
+When empty crawler will use sqlite3 driver.`,
+	)
 	updateDaysPast := flag.Int(
 		"days",
 		1,
@@ -134,8 +105,6 @@ Crawler will exit after saving to disk.`,
 	// trim whitespace and drop trailing '/'
 	*baseURL = strings.TrimSpace(*baseURL)
 	*baseURL = strings.TrimRight(*baseURL, "/")
-
-	v := internal.NewValidator()
 
 	parsedBaseURL, err := url.Parse(*baseURL)
 	if err != nil {
@@ -219,136 +188,5 @@ Crawler will exit after saving to disk.`,
 		fmt.Print(Reset)
 	}
 
-	// init file and os.Stdout logger
-	f, logger := initialiseLogger()
-	defer f.Close()
-
-	// init and test db
-	db, err := openDB(*cmdArgs.dbDSN)
-	if err != nil {
-		logger.Fatalln(err)
-	}
-	logger.Println("DB connection OK.")
-	defer db.Close()
-
-	// init models
-	var m models.Models
-	psqlModels := psql.NewPsqlDB(db)
-	m.URLs = psqlModels.URLModel
-	m.Pages = psqlModels.PageModel
-
-	// init queue & push base url
-	q := queue.NewQueue()
-	q.Push(cmdArgs.baseURL.String())
-
-	// create cancel context to use for graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	go listenForSignals(cancel, q, logger)
-
-	if cmdArgs.dbToDisk {
-		err = saveDbContentToDisk(
-			ctx,
-			db,
-			cmdArgs.baseURL,
-			cmdArgs.savePath,
-			cmdArgs.cutOffDate,
-			cmdArgs.markedURLs,
-			logger,
-		)
-		if err != nil {
-			logger.Fatalf("Error while saving to disk: %v", err)
-		}
-		logger.Println("Transfer completed")
-		os.Exit(0)
-	}
-
-	// insert base URL to URL model if not present
-	// when present will throw unique constraint error, which can be ignored
-	var t time.Time
-	u := models.NewURL(cmdArgs.baseURL.String(), t, t, false)
-	_ = m.URLs.Insert(u)
-
-	// get all urls from db, put all in queue's map
-	loadedURLs := loadUrlsToQueue(
-		ctx,
-		*cmdArgs.baseURL,
-		q,
-		&m,
-		*cmdArgs.updateDaysPast,
-		logger,
-		cmdArgs.markedURLs,
-	)
-	logger.Printf("Loaded %d URLs from model\n", loadedURLs)
-
-	// if retry == 0, don't init request stats map
-	var retryRequestStats map[string]int
-	if *cmdArgs.retryTime > 0 {
-		retryRequestStats = map[string]int{}
-	} else {
-		retryRequestStats = nil
-	}
-
-	crawlerCfg := &webcrawler.CrawlerConfig{
-		Queue:          q,
-		Models:         &m,
-		BaseURL:        cmdArgs.baseURL,
-		UserAgent:      *cmdArgs.userAgent,
-		MarkedURLs:     cmdArgs.markedURLs,
-		IgnorePatterns: cmdArgs.ignorePattern,
-		RequestDelay:   cmdArgs.reqDelay,
-		IdleTimeout:    cmdArgs.idleTimeout,
-		Log:            logger,
-		RetryTimes:     *cmdArgs.retryTime,
-		FailedRequests: retryRequestStats,
-		Ctx:            ctx,
-	}
-
-	// init waitgroup
-	var wg sync.WaitGroup
-
-	// init n crawlers
-	crawlerArmy, err := webcrawler.NNewCrawlers(int(*cmdArgs.nCrawlers), "crawler", crawlerCfg)
-	if err != nil {
-		logger.Fatalln(err)
-	}
-
-	modifiedTransport := http.DefaultTransport.(*http.Transport).Clone()
-	modifiedTransport.MaxIdleConnsPerHost = 50
-
-	httpClient := &http.Client{
-		Timeout:   defaultTimeout,
-		Transport: modifiedTransport,
-	}
-
-	for _, crawler := range crawlerArmy {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-			crawler.Crawl(httpClient)
-		}()
-
-	}
-
-	// wait for crawlers
-	wg.Wait()
-	logger.Println("Done")
-	fmt.Print(Red, "Done", Reset, "\n")
-}
-
-func listenForSignals(cancel context.CancelFunc, queue *queue.UniqueQueue, logger *log.Logger) {
-	defer cancel()
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	// wait for signal
-	s := <-quit
-	// clear queue
-	queue.Clear()
-
-	timeOut := 3 * time.Second
-
-	logger.Println("=============== SHUTDOWN INITIATED ===============")
-	logger.Printf("%s signal received", s.String())
-	logger.Printf("Will shutdown in %s\n", timeOut.String())
-	time.Sleep(timeOut)
+	return &cmdArgs
 }

@@ -1,12 +1,13 @@
-# web-crawler
- Crawl a website and save marked URL path(s) to DB
+# webcrawlerGo v0.7.0
+ Crawl a website and save marked URL's contents to DB
 
 ### Summary:
 Crawler will crawl the provided Base URL and fetch all the valid hrefs on the page.
 Unseen hrefs will be added to a unique queue for fetching hrefs in them.
 Crawler will save the paths which are to be monitored (from models) or marked (from cmd arg).
+Crawler respects the robots.txt of the website being parsed.
 
-Requires PostgreSQL.
+Can use PostgreSQL when provided else will open a local sqlite3 database.
 
 ### Usage:
 
@@ -18,11 +19,13 @@ Requires PostgreSQL.
     -date string
         Cut-off date upto which the latest crawled pages will be saved to disk.
         Format: YYYY-MM-DD. Applicable only with 'save' flag.
-        (default "2024-10-09")
+        (default "2024-10-17")
     -days int
         Days past which monitored URLs should be updated (default 1)
     -db-dsn string
-        PostgreSQL DSN (required)
+        DSN string to database.
+        Supported DSN: PostgreSQL DSN (optional).
+        When empty crawler will use sqlite3 driver.
     -db2disk
         Use this flag to write the latest crawled content to disk.
         Customise using arguments 'path' and 'date'.
@@ -34,12 +37,14 @@ Requires PostgreSQL.
         Comma ',' seperated string of url patterns to ignore.
     -murls string
         Comma ',' seperated string of marked url paths to save/update.
+        If the marked path is unmonitored in the database, the crawler
+        will mark the URL as monitored.
         When empty, crawler will update monitored URLs from the model.
     -n int
         Number of crawlers to invoke (default 10)
     -path string
         Output path to save the content of crawled web pages.
-        Applicable only with 'save' flag. (default "./OUT/2024-10-10_19-40-41")
+        Applicable only with 'save' flag. (default "./OUT/2024-10-17_15-03-37")
     -req-delay string
         Delay between subsequent requests.
         Min: 1ms (default "50ms")
@@ -49,8 +54,8 @@ Requires PostgreSQL.
         twice after initial failure. (default 2)
     -ua string
         User-Agent string to use while crawling
-        (default "web-crawler/v0.5.0 - Web-crawler in Go")
-    -v  Display app version
+        (default "webcrawlerGo/v0.7.0 - Web crawler in Go")
+    -v   Display app version
 
   Note: 
    - Crawler will ignore the hrefs that begins with "file:", "javascript:", "mailto:", "tel:", "#", "data:"

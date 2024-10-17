@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/0x00f00bar/web-crawler/internal"
@@ -28,7 +29,11 @@ func validateFlags(v *internal.Validator, args *cmdFlags) {
 	)
 
 	// validate db-dsn
-	v.Check(*args.dbDSN != "", "db-dsn", "must be provided")
+	v.Check(
+		strings.Contains(*args.dbDSN, "postgres") || *args.dbDSN == "",
+		"db-dsn",
+		"only postgres dsn are supported, when empty will use sqlite3 driver",
+	)
 
 	// validate user-agent
 	v.Check(*args.userAgent != "", "ua", "must be provided")

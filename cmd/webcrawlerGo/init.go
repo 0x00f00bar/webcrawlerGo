@@ -43,10 +43,10 @@ func loadUrlsToQueue(
 	updateInterval int,
 	logger *log.Logger,
 	markedURLs []string,
-) int {
+) (int, error) {
 	dburls, err := m.GetAll("is_monitored")
 	if err != nil {
-		log.Println(err)
+		return 0, err
 	}
 	intervalDuration, _ := time.ParseDuration(fmt.Sprintf("%dh", updateInterval*24))
 	currentTime := time.Now()
@@ -55,12 +55,12 @@ func loadUrlsToQueue(
 	for _, urlDB := range dburls {
 		select {
 		case <-ctx.Done():
-			return urlsPushedToQ
+			return urlsPushedToQ, nil
 		default:
 
 			parsedUrlDB, err := url.Parse(urlDB.URL)
 			if err != nil {
-				logger.Printf("Unable to parse url '%s' from model URLs\n", urlDB.URL)
+				logger.Printf("Unable to parse url '%s' from db\n", urlDB.URL)
 			}
 			// only process URLs belonging to baseURL
 			if parsedUrlDB.Hostname() == baseURL.Hostname() {
@@ -81,7 +81,7 @@ func loadUrlsToQueue(
 					urlDB.IsMonitored = true
 					err := m.Update(urlDB)
 					if err != nil {
-						logger.Fatalf("Unable to update model for url '%s': %v\n", urlDB.URL, err)
+						return 0, fmt.Errorf("unable to update url '%s': %v", urlDB.URL, err)
 					}
 
 				// else just add to map with false value to not access that URL
@@ -99,5 +99,5 @@ func loadUrlsToQueue(
 			}
 		}
 	}
-	return urlsPushedToQ
+	return urlsPushedToQ, nil
 }

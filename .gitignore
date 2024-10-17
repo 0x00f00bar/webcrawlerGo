@@ -28,3 +28,6 @@ go.work
 *.log
 .vscode
 *.html
+*.db
+*.db-shm
+*.db-wal

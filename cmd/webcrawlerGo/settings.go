@@ -14,9 +14,9 @@ var (
 
 	// defaultTimeout is used in http.Client and timeout while shutting down
 	defaultTimeout    = 5 * time.Second
-	defaultUserAgent  = fmt.Sprintf("web-crawler/v%s - Web-crawler in Go", version)
+	defaultUserAgent  = fmt.Sprintf("webcrawlerGo/v%s - Web crawler in Go", version)
 	defaultSavePath   = fmt.Sprintf("./OUT/%s", time.Now().Format("2006-01-02_15-04-05"))
 	dateLayout        = "2006-01-02"
 	timeStampLayout   = dateLayout + "_15-04-05"
-	defaultCutOffDate = fmt.Sprint(time.Now().AddDate(0, 0, -1).Format(dateLayout))
+	defaultCutOffDate = fmt.Sprint(time.Now().Format(dateLayout))
 )
