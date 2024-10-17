@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -208,12 +209,13 @@ func (c *Crawler) Crawl(client *http.Client) {
 						u := models.NewURL(href, t, t, c.isMarkedURL(href))
 						err = c.Models.URLs.Insert(u)
 						if err != nil {
-							c.Log.Fatalf(
-								"%s: Failed to insert url '%s' to model: %v\n",
+							c.Log.Printf(
+								"%s: FATAL : Failed to insert url '%s' to model: %v\n",
 								c.Name,
 								href,
 								err,
 							)
+							runtime.Goexit()
 						}
 						// if url is marked set value to true to fetch its content
 						if u.IsMonitored {
@@ -229,18 +231,20 @@ func (c *Crawler) Crawl(client *http.Client) {
 			// map value of current URL
 			saveURLContent, err := c.Queue.GetMapValue(urlpath)
 			if errors.Is(err, queue.ErrItemNotFound) {
-				c.Log.Fatalf(
+				c.Log.Printf(
 					"%s: FATAL : URL not found in queue map '%s'. Quitting.\n",
 					c.Name,
 					urlpath,
 				)
+				runtime.Goexit()
 			}
 
 			// if current url is to be monitored OR marked, save content to DB and update url
 			if c.isMarkedURL(urlpath) || saveURLContent {
 				err = c.savePageContent(urlpath, doc)
 				if err != nil {
-					c.Log.Fatalln(err)
+					c.Log.Printf("%s: FATAL. %s\n", c.Name, err)
+					runtime.Goexit()
 				}
 				c.Log.Printf("%s: Saved content of url '%s'\n", c.Name, urlpath)
 
@@ -250,7 +254,8 @@ func (c *Crawler) Crawl(client *http.Client) {
 				// else update LastChecked field
 				err = c.updateLastCheckedDate(urlpath, time.Now())
 				if err != nil {
-					c.Log.Fatalln(err)
+					c.Log.Printf("%s: FATAL. %s\n", c.Name, err)
+					runtime.Goexit()
 				}
 			}
 
@@ -279,7 +284,8 @@ func (c *Crawler) savePageContent(urlpath string, doc *goquery.Document) error {
 		return fmt.Errorf("%s: could not read page content: %v", c.Name, err)
 	}
 	if len(contentStr) < 100 {
-		c.Log.Fatalf("Empty/no content. url: '%s'; len: %d", urlpath, len(contentStr))
+		c.Log.Printf("FATAL. Empty/no content. url: '%s'; len: %d", urlpath, len(contentStr))
+		runtime.Goexit()
 	}
 	newPage := models.NewPage(uModel.ID, contentStr)
 	if err = c.Models.Pages.Insert(newPage); err != nil {
