@@ -68,18 +68,33 @@ func main() {
 		}
 	}()
 
+	// create cancel context for graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+
 	// init models
 	var m models.Models
 
-	// get postgres models
+	// get postgres models and initialise database tables
 	if driverName == driverNamePgSQL {
 		psqlModels := psql.NewPsqlDB(dbConns[0])
+		err := psqlModels.InitDatabase(ctx, dbConns[0])
+		if err != nil {
+			exitCode = 1
+			logger.Println(err)
+			return
+		}
 		m.URLs = psqlModels.URLModel
 		m.Pages = psqlModels.PageModel
 	}
-	// get sqlite3 models
+	// get sqlite3 models and initialise database tables
 	if driverName == driverNameSQLite {
 		sqliteModels := sqlite.NewSQLiteDB(dbConns[0], dbConns[1])
+		err := sqliteModels.InitDatabase(ctx, dbConns[1])
+		if err != nil {
+			exitCode = 1
+			logger.Println(err)
+			return
+		}
 		m.URLs = sqliteModels.URLModel
 		m.Pages = sqliteModels.PageModel
 	}
@@ -88,8 +103,6 @@ func main() {
 	q := queue.NewQueue()
 	q.Push(cmdArgs.baseURL.String())
 
-	// create cancel context for graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
 	go listenForSignals(cancel, q, logger)
 
 	if cmdArgs.dbToDisk {

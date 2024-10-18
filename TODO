@@ -15,6 +15,7 @@ TODO
 - [x] take user agent from cmd args v0.6.0
 - [x] implement models for SQLite v0.7.0 // find citext alternative: name TEXT COLLATE NOCASE -> not required, sqlite is case-insensitive
 - [x] consolidate the WAL file upon exit v0.7.0
-- [ ] scrolling logs? v0.8.0
-- [ ] auto migrate using go-migrate/query or through query v0.8.0
+- [ ] scrolling logs? v0.8.5
+- [ ] get urls from a file v0.8.0
+- [x] auto migrate using go-migrate/query or through query v0.8.0
 - [ ] write the web UI to view and manage 'URLs' and 'Pages' models v0.9.0

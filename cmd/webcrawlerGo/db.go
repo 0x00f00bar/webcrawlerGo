@@ -65,26 +65,6 @@ func openDB(driver string, dsn string, dbConfig *dbConfig) (*sql.DB, error) {
 	return db, nil
 }
 
-// openDBConns opens and tests multiple DB connections using a common driver but
-// with different dns and dbConfigs
-func openDBConns(driver string, dbDSNs []string, dbConfigs []*dbConfig) ([]*sql.DB, error) {
-	if len(dbDSNs) != len(dbConfigs) {
-		return nil, fmt.Errorf("length of DSNs does not match with length of dbConfigs provided")
-	}
-
-	var dbConns []*sql.DB
-
-	for i, dsn := range dbDSNs {
-		dbConn, err := openDB(driver, dsn, dbConfigs[i])
-		if err != nil {
-			return nil, err
-		}
-		dbConns = append(dbConns, dbConn)
-	}
-
-	return dbConns, nil
-}
-
 // closeDBConns closes multiple DB connections
 func closeDBConns(dbConns []*sql.DB) {
 	for _, dbConn := range dbConns {
@@ -103,17 +83,14 @@ func getDBConnections(
 	// actual db connection(s)
 	// var dbConns []*sql.DB
 
-	// db config for different connections
-	var dbConfs []*dbConfig
-	// db connection DNSs
-	var dbConnDSNs []string
-
 	// when DSN is empty use sqlite3 driver
 	if dsn == "" {
 		logger.Println("Using sqlite3 driver")
 		driverName = driverNameSQLite
 
 		// writer config and dsn
+		// open writer connection first as this will
+		// create the db file if it doesn't exist
 		dbconfWriter := &dbConfig{
 			MaxOpenConns:    1,
 			MaxIdleConns:    2,
@@ -124,6 +101,10 @@ func getDBConnections(
 			sqliteDBName,
 			strings.Join(sqliteDBWriterArgs, "&"),
 		)
+		sqWriterDB, err := openDB(driverName, writerDSN, dbconfWriter)
+		if err != nil {
+			return "", nil, err
+		}
 
 		// reader config and dsn
 		dbconfReader := &dbConfig{
@@ -136,12 +117,15 @@ func getDBConnections(
 			sqliteDBName,
 			strings.Join(sqliteDBReaderArgs, "&"),
 		)
+		sqReaderDB, err := openDB(driverName, readerDSN, dbconfReader)
+		if err != nil {
+			return "", nil, err
+		}
 
 		// keep reader first and writer second as this will
-		// enable sqlite to clean up properly after connection closure
-		// writer should be the last one to close the connection
-		dbConfs = append(dbConfs, dbconfReader, dbconfWriter)
-		dbConnDSNs = append(dbConnDSNs, readerDSN, writerDSN)
+		// enable sqlite to clean up properly during connection closure.
+		// Writer should be the last one to close the connection.
+		dbConns = append(dbConns, sqReaderDB, sqWriterDB)
 
 	} else if strings.Contains(dsn, "postgres") {
 		logger.Println("Using postgres driver")
@@ -152,13 +136,11 @@ func getDBConnections(
 			MaxIdleConns:    dbMaxIdleConn,
 			ConnMaxIdleTime: dbMaxConnIdleDuration,
 		}
-
-		dbConfs = append(dbConfs, dbconf)
-		dbConnDSNs = append(dbConnDSNs, dsn)
-	}
-	dbConns, err = openDBConns(driverName, dbConnDSNs, dbConfs)
-	if err != nil {
-		return "", nil, err
+		pgDBConn, err := openDB(driverName, dsn, dbconf)
+		if err != nil {
+			return "", nil, err
+		}
+		dbConns = append(dbConns, pgDBConn)
 	}
 
 	return driverName, dbConns, nil
