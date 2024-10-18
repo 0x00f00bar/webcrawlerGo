@@ -10,6 +10,8 @@ import (
 	"github.com/0x00f00bar/webcrawlerGo/models"
 )
 
+const DriverNamePgSQL = "postgres"
+
 type PsqlDB struct {
 	URLModel  *urlDB
 	PageModel *pageDB

@@ -9,6 +9,8 @@ import (
 	"github.com/0x00f00bar/webcrawlerGo/models"
 )
 
+const DriverNameSQLite = "sqlite3"
+
 // sqliteConnections holds seperate connections to multiple readers
 // and a single writer, as SQLite supports only one writer
 // we will enable WAL journal mode for multiple concurrent readers
@@ -73,5 +75,18 @@ func (sq SQLiteDB) InitDatabase(ctx context.Context, db *sql.DB) error {
 		}
 	}
 
+	return nil
+}
+
+// ExecWALCheckpoint will initiate checkpoint in the WAL journal
+func ExecWALCheckpoint(driverName string, dbWriter *sql.DB) error {
+	if driverName == DriverNameSQLite {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_, err := dbWriter.ExecContext(ctx, "PRAGMA wal_checkpoint(FULL);")
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
