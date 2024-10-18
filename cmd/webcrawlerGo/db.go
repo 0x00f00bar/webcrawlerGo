@@ -14,6 +14,8 @@ import (
 
 	"github.com/0x00f00bar/webcrawlerGo/internal"
 	"github.com/0x00f00bar/webcrawlerGo/models"
+	"github.com/0x00f00bar/webcrawlerGo/models/psql"
+	"github.com/0x00f00bar/webcrawlerGo/models/sqlite"
 )
 
 type dbConfig struct {
@@ -22,21 +24,32 @@ type dbConfig struct {
 	ConnMaxIdleTime time.Duration
 }
 
-const (
-	driverNamePgSQL  = "postgres"
-	driverNameSQLite = "sqlite3"
-	sqliteDBName     = "crawler.db"
-)
-
-var sqliteDBWriterArgs = []string{
-	"_busy_timeout=5000",
-	"_foreign_keys=1",
-	"_journal_mode=WAL",
-	"mode=rwc",
-	"_synchronous=1",
-	"_loc=auto",
+// dbConnections stores reader and writer connections
+// to a DB
+type dbConnections struct {
+	reader *sql.DB
+	writer *sql.DB
 }
-var sqliteDBReaderArgs = []string{"_foreign_keys=1", "mode=ro", "_loc=auto"}
+
+// Close will close all connections to the database.
+func (dbConns *dbConnections) Close() error {
+	// close reader first and writer second as this will
+	// enable sqlite to clean up properly after connection closure.
+	// Writer should be the last one to close the connection.
+	if dbConns.reader != nil {
+		err := dbConns.reader.Close()
+		if err != nil {
+			return err
+		}
+	}
+	if dbConns.writer != nil {
+		err := dbConns.writer.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // openDB opens and tests a connection to database identified
 // by the dsn string using driver
@@ -65,28 +78,21 @@ func openDB(driver string, dsn string, dbConfig *dbConfig) (*sql.DB, error) {
 	return db, nil
 }
 
-// closeDBConns closes multiple DB connections
-func closeDBConns(dbConns []*sql.DB) {
-	for _, dbConn := range dbConns {
-		dbConn.Close()
-	}
-}
-
 // getDBConnections will create, test and return db connection(s)
 // based on dsn
 func getDBConnections(
 	dsn string,
 	logger *log.Logger,
-) (driverName string, dbConns []*sql.DB, err error) {
+) (string, *dbConnections, error) {
 	// driver used for db connection
-	// var driverName string
+	var driverName string
 	// actual db connection(s)
-	// var dbConns []*sql.DB
+	dbConns := &dbConnections{}
 
 	// when DSN is empty use sqlite3 driver
 	if dsn == "" {
 		logger.Println("Using sqlite3 driver")
-		driverName = driverNameSQLite
+		driverName = sqlite.DriverNameSQLite
 
 		// writer config and dsn
 		// open writer connection first as this will
@@ -105,6 +111,7 @@ func getDBConnections(
 		if err != nil {
 			return "", nil, err
 		}
+		dbConns.writer = sqWriterDB
 
 		// reader config and dsn
 		dbconfReader := &dbConfig{
@@ -122,14 +129,11 @@ func getDBConnections(
 			return "", nil, err
 		}
 
-		// keep reader first and writer second as this will
-		// enable sqlite to clean up properly during connection closure.
-		// Writer should be the last one to close the connection.
-		dbConns = append(dbConns, sqReaderDB, sqWriterDB)
+		dbConns.reader = sqReaderDB
 
 	} else if strings.Contains(dsn, "postgres") {
 		logger.Println("Using postgres driver")
-		driverName = driverNamePgSQL
+		driverName = psql.DriverNamePgSQL
 
 		dbconf := &dbConfig{
 			MaxOpenConns:    dbMaxOpenConn,
@@ -140,7 +144,7 @@ func getDBConnections(
 		if err != nil {
 			return "", nil, err
 		}
-		dbConns = append(dbConns, pgDBConn)
+		dbConns.writer = pgDBConn
 	}
 
 	return driverName, dbConns, nil

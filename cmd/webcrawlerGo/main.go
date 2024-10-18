@@ -55,18 +55,11 @@ func main() {
 		return
 	}
 	logger.Println("DB connection OK.")
-	defer closeDBConns(dbConns)
+	defer dbConns.Close()
 
 	// if the driver used is sqlite3 consolidate the WAL journal to db
 	// before closing connection
-	defer func() {
-		if driverName == driverNameSQLite {
-			dbWriter := dbConns[1]
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			dbWriter.ExecContext(ctx, "PRAGMA wal_checkpoint(FULL);")
-		}
-	}()
+	defer sqlite.ExecWALCheckpoint(driverName, dbConns.writer)
 
 	// create cancel context for graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
@@ -75,9 +68,9 @@ func main() {
 	var m models.Models
 
 	// get postgres models and initialise database tables
-	if driverName == driverNamePgSQL {
-		psqlModels := psql.NewPsqlDB(dbConns[0])
-		err := psqlModels.InitDatabase(ctx, dbConns[0])
+	if driverName == psql.DriverNamePgSQL {
+		psqlModels := psql.NewPsqlDB(dbConns.writer)
+		err := psqlModels.InitDatabase(ctx, dbConns.writer)
 		if err != nil {
 			exitCode = 1
 			logger.Println(err)
@@ -87,9 +80,9 @@ func main() {
 		m.Pages = psqlModels.PageModel
 	}
 	// get sqlite3 models and initialise database tables
-	if driverName == driverNameSQLite {
-		sqliteModels := sqlite.NewSQLiteDB(dbConns[0], dbConns[1])
-		err := sqliteModels.InitDatabase(ctx, dbConns[1])
+	if driverName == sqlite.DriverNameSQLite {
+		sqliteModels := sqlite.NewSQLiteDB(dbConns.reader, dbConns.writer)
+		err := sqliteModels.InitDatabase(ctx, dbConns.writer)
 		if err != nil {
 			exitCode = 1
 			logger.Println(err)
