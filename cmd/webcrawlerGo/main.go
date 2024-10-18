@@ -33,19 +33,19 @@ var (
 func main() {
 	printBanner()
 
-	v := internal.NewValidator()
-
-	// parse cmd flags; exit if flags invalid
-	cmdArgs := pargeCmdFlags(v)
-
 	var exitCode int
 	defer func() {
 		os.Exit(exitCode)
 	}()
 
+	v := internal.NewValidator()
+
 	// init file and os.Stdout logger
 	f, logger := initialiseLogger()
 	defer f.Close()
+
+	// parse cmd flags; exit if flags invalid
+	cmdArgs := pargeCmdFlags(v, logger)
 
 	// init and test db
 	driverName, dbConns, err := getDBConnections(*cmdArgs.dbDSN, logger)
