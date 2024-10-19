@@ -11,6 +11,8 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	webcrawler "github.com/0x00f00bar/webcrawlerGo"
 	"github.com/0x00f00bar/webcrawlerGo/internal"
 	"github.com/0x00f00bar/webcrawlerGo/models"
@@ -148,6 +150,12 @@ func main() {
 	} else {
 		retryRequestStats = nil
 	}
+	p := tea.NewProgram(newModel(*cmdArgs.nCrawlers))
+
+	prettyLogger := &crawLogger{
+		teaProgram:   p,
+		crawlerCount: *cmdArgs.nCrawlers,
+	}
 
 	crawlerCfg := &webcrawler.CrawlerConfig{
 		Queue:          q,
@@ -158,10 +166,11 @@ func main() {
 		IgnorePatterns: cmdArgs.ignorePattern,
 		RequestDelay:   cmdArgs.reqDelay,
 		IdleTimeout:    cmdArgs.idleTimeout,
-		Log:            logger,
+		Logger:         logger,
 		RetryTimes:     *cmdArgs.retryTime,
 		FailedRequests: retryRequestStats,
 		Ctx:            ctx,
+		PrettyLogger:   prettyLogger,
 	}
 
 	// init n crawlers
@@ -191,6 +200,10 @@ func main() {
 			crawler.Crawl(httpClient)
 		}()
 
+	}
+
+	if _, err := p.Run(); err != nil {
+		fmt.Println("Error running program:", err)
 	}
 
 	// wait for crawlers

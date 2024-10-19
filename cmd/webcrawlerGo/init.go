@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/0x00f00bar/webcrawlerGo/internal"
@@ -17,20 +15,6 @@ import (
 func init() {
 	// make a folder to store logs
 	internal.CreateDirIfNotExists(logFolderName)
-}
-
-// initialiseLogger returns a log file handle f and a MultiWriter logger (os.Stdout & f)
-func initialiseLogger() (f *os.File, logger *log.Logger) {
-	logFileName := fmt.Sprintf(
-		"./%s/logfile-%s.log",
-		logFolderName,
-		time.Now().Format("02-01-2006-15-04-05"),
-	)
-	f, err := os.OpenFile(logFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		panic(err)
-	}
-	return f, log.New(io.MultiWriter(os.Stdout, f), "", log.LstdFlags|log.Lshortfile)
 }
 
 // loadUrlsToQueue fetches all urls from URL model and loads them to queue.
