@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"strings"
@@ -28,9 +27,9 @@ type cmdFlags struct {
 	userAgent      *string       // -ua
 }
 
-// pargeCmdFlags will parse cmd flags and validate them.
+// parseCmdFlags will parse cmd flags and validate them.
 // Validation failure will exit the program.
-func pargeCmdFlags(v *internal.Validator, logger *log.Logger) *cmdFlags {
+func parseCmdFlags(v *internal.Validator, f *os.File) *cmdFlags {
 	// define cmd args; usage message is formatted for better visibility on standard
 	// terminal width of 80 chars
 	printVersion := flag.Bool("v", false, "Display app version")
@@ -163,16 +162,16 @@ Crawler will exit after saving to disk.`,
 	fmt.Println(Red + "Running crawler with the following options:" + Reset)
 	fmt.Printf(Cyan+"%-16s: %s\n", "Base URL", cmdArgs.baseURL.String())
 	fmt.Printf("%-16s: %t\n", "DB-2-Disk", cmdArgs.dbToDisk)
-	logger.Println("Running crawler with the following options:")
-	logger.Printf("%-16s: %s\n", "Base URL", cmdArgs.baseURL.String())
-	logger.Printf("%-16s: %t\n", "DB-2-Disk", cmdArgs.dbToDisk)
+	f.Write([]byte("Running crawler with the following options:\n"))
+	f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Base URL", cmdArgs.baseURL.String())))
+	f.Write([]byte(fmt.Sprintf("%-16s: %t\n", "DB-2-Disk", cmdArgs.dbToDisk)))
 	if cmdArgs.dbToDisk {
 		fmt.Printf("%-16s: %s\n", "Save path", cmdArgs.savePath)
 		fmt.Printf("%-16s: %s\n", "Cutoff date", cmdArgs.cutOffDate)
 		fmt.Printf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " "))
-		logger.Printf("%-16s: %s\n", "Save path", cmdArgs.savePath)
-		logger.Printf("%-16s: %s\n", "Cutoff date", cmdArgs.cutOffDate)
-		logger.Printf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " "))
+		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Save path", cmdArgs.savePath)))
+		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Cutoff date", cmdArgs.cutOffDate)))
+		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " "))))
 	} else {
 		fmt.Printf("%-16s: %s\n", "User-Agent", *cmdArgs.userAgent)
 		fmt.Printf("%-16s: %d day(s)\n", "Update interval", *cmdArgs.updateDaysPast)
@@ -181,13 +180,13 @@ Crawler will exit after saving to disk.`,
 		fmt.Printf("%-16s: %d\n", "Crawler count", *cmdArgs.nCrawlers)
 		fmt.Printf("%-16s: %s\n", "Idle time", cmdArgs.idleTimeout)
 		fmt.Printf("%-16s: %s\n", "Request delay", cmdArgs.reqDelay)
-		logger.Printf("%-16s: %s\n", "User-Agent", *cmdArgs.userAgent)
-		logger.Printf("%-16s: %d day(s)\n", "Update interval", *cmdArgs.updateDaysPast)
-		logger.Printf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " "))
-		logger.Printf("%-16s: %s\n", "Ignored Pattern", strings.Join(cmdArgs.ignorePattern, " "))
-		logger.Printf("%-16s: %d\n", "Crawler count", *cmdArgs.nCrawlers)
-		logger.Printf("%-16s: %s\n", "Idle time", cmdArgs.idleTimeout)
-		logger.Printf("%-16s: %s\n", "Request delay", cmdArgs.reqDelay)
+		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "User-Agent", *cmdArgs.userAgent)))
+		f.Write([]byte(fmt.Sprintf("%-16s: %d day(s)\n", "Update interval", *cmdArgs.updateDaysPast)))
+		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " "))))
+		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Ignored Pattern", strings.Join(cmdArgs.ignorePattern, " "))))
+		f.Write([]byte(fmt.Sprintf("%-16s: %d\n", "Crawler count", *cmdArgs.nCrawlers)))
+		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Idle time", cmdArgs.idleTimeout)))
+		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Request delay", cmdArgs.reqDelay)))
 	}
 	fmt.Print(Reset)
 

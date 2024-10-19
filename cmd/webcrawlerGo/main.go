@@ -46,7 +46,7 @@ func main() {
 	f.Write([]byte(banner + "\n" + "v" + version + "\n\n"))
 
 	// parse cmd flags; exit if flags invalid
-	cmdArgs := pargeCmdFlags(v, logger)
+	cmdArgs := parseCmdFlags(v, f)
 
 	// init and test db
 	driverName, dbConns, err := getDBConnections(*cmdArgs.dbDSN, logger)
