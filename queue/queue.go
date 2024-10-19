@@ -87,7 +87,7 @@ func (q *UniqueQueue) SetMapValue(key string, value bool) {
 	q.strMap[key] = value
 }
 
-// Push appends item to the queue after checking that item was
+// Insert appends item to the queue after checking that item was
 // never seen before by the queue. Returns true if item was added to the queue.
 //
 // Care: Map is case-sensitive. Use strings.ToLower to make case-insensitive.
@@ -96,7 +96,7 @@ func (q *UniqueQueue) SetMapValue(key string, value bool) {
 // Default item value is 'false'.
 //
 // Thread safe.
-func (q *UniqueQueue) Push(item string) (success bool) {
+func (q *UniqueQueue) Insert(item string) (success bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	// if item is not present in strMap then
@@ -109,7 +109,7 @@ func (q *UniqueQueue) Push(item string) (success bool) {
 	return
 }
 
-// PushForce appends item to the queue WITHOUT checking that the item was seen before.
+// InsertForce appends item to the queue WITHOUT checking that the item was seen before.
 // Useful when item was not processed successfully and needs to be reprocessed. Or while
 // bulk loading from unique set.
 //
@@ -118,18 +118,18 @@ func (q *UniqueQueue) Push(item string) (success bool) {
 // Default item value is 'false'.
 //
 // Thread safe.
-func (q *UniqueQueue) PushForce(item string) {
+func (q *UniqueQueue) InsertForce(item string) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.strMap[item] = false
 	q.queue = append(q.queue, item)
 }
 
-// Pop pops first item from the queue.
+// Remove pops first item from the queue.
 // Returns ErrEmptyQueue when empty.
 //
 // Thread safe.
-func (q *UniqueQueue) Pop() (string, error) {
+func (q *UniqueQueue) Remove() (string, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if !q.IsEmpty() {

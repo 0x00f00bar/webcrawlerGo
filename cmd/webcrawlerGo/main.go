@@ -43,6 +43,7 @@ func main() {
 	// init file and os.Stdout logger
 	f, logger := initialiseLogger()
 	defer f.Close()
+	f.Write([]byte(banner + "\n" + "v" + version + "\n\n"))
 
 	// parse cmd flags; exit if flags invalid
 	cmdArgs := pargeCmdFlags(v, logger)
@@ -94,7 +95,7 @@ func main() {
 
 	// init queue & push base url
 	q := queue.NewQueue()
-	q.Push(cmdArgs.baseURL.String())
+	q.Insert(cmdArgs.baseURL.String())
 
 	go listenForSignals(cancel, q, logger)
 

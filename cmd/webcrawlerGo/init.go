@@ -90,7 +90,7 @@ func loadUrlsToQueue(
 				}
 
 				if fetchContent {
-					q.PushForce(urlDB.URL)
+					q.InsertForce(urlDB.URL)
 					q.SetMapValue(urlDB.URL, true)
 					urlsPushedToQ += 1
 				} else {

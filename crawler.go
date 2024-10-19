@@ -145,7 +145,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 			return
 		default:
 			// get item from queue
-			urlpath, err := c.Queue.Pop()
+			urlpath, err := c.Queue.Remove()
 
 			// if queue is empty wait for defaultSleepDuration; retry upto idle timeout before quitting
 			if errors.Is(err, queue.ErrEmptyQueue) {
@@ -163,7 +163,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 				// check that FailedRequests is not nil (when map is not initialised i.e. RetryTimes==0)
 				if c.FailedRequests != nil && c.FailedRequests[urlpath] < c.RetryTimes {
 					// and add the url back to queue
-					c.Queue.PushForce(urlpath)
+					c.Queue.InsertForce(urlpath)
 					c.FailedRequests[urlpath] += 1
 				}
 				continue
@@ -201,7 +201,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 			// go through fetched urls, if url not in queue(map) save to db and queue
 			for _, href := range hrefs {
 				if c.isValidURL(href) {
-					if ok := c.Queue.Push(href); ok {
+					if ok := c.Queue.Insert(href); ok {
 						c.Log.Printf("%s: Added url '%s' to queue\n", c.Name, href)
 						// temp time var as time.Time value cannot be set to nil
 						// and we don't want to set URL.LastSaved and URL.LastChecked right now

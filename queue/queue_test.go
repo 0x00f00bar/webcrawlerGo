@@ -18,7 +18,7 @@ func TestUniqueQueue(t *testing.T) {
 		}
 	})
 
-	t.Run("Push", func(t *testing.T) {
+	t.Run("Insert", func(t *testing.T) {
 		queue := NewQueue()
 
 		tests := []struct {
@@ -32,9 +32,9 @@ func TestUniqueQueue(t *testing.T) {
 		}
 
 		for _, test := range tests {
-			got := queue.Push(test.input)
+			got := queue.Insert(test.input)
 			if got != test.want {
-				t.Errorf("input: %s, queue push got %t, want %t", test.input, got, test.want)
+				t.Errorf("input: %s, queue insert got %t, want %t", test.input, got, test.want)
 			}
 
 			size := queue.Size()
@@ -49,7 +49,7 @@ func TestUniqueQueue(t *testing.T) {
 		}
 	})
 
-	t.Run("PushForce", func(t *testing.T) {
+	t.Run("InsertForce", func(t *testing.T) {
 		queue := NewQueue()
 
 		tests := []struct {
@@ -63,7 +63,7 @@ func TestUniqueQueue(t *testing.T) {
 		}
 
 		for _, test := range tests {
-			queue.PushForce(test.input)
+			queue.InsertForce(test.input)
 
 			size := queue.Size()
 			if size != test.want {
@@ -77,7 +77,7 @@ func TestUniqueQueue(t *testing.T) {
 		}
 	})
 
-	t.Run("Pop", func(t *testing.T) {
+	t.Run("Remove", func(t *testing.T) {
 		queue := NewQueue()
 
 		tests := []struct {
@@ -97,15 +97,15 @@ func TestUniqueQueue(t *testing.T) {
 
 		for i, test := range tests {
 			if test.useForce {
-				queue.PushForce(test.input)
+				queue.InsertForce(test.input)
 			} else {
-				queue.Push(test.input)
+				queue.Insert(test.input)
 			}
 
-			got, err := queue.Pop()
+			got, err := queue.Remove()
 			if got != test.want {
 				t.Errorf(
-					"index# %d, Force push: %t. queue pop should be: %q, got: %q",
+					"index# %d, Force Insert: %t. queue remove should be: %q, got: %q",
 					i,
 					test.useForce,
 					test.want,
@@ -115,7 +115,7 @@ func TestUniqueQueue(t *testing.T) {
 
 			if !errors.Is(err, test.err) {
 				t.Errorf(
-					"index# %d, Force push: %t. queue pop error should be: %q, got: %q",
+					"index# %d, Force Insert: %t. queue remove error should be: %q, got: %q",
 					i,
 					test.useForce,
 					test.err,
@@ -136,7 +136,7 @@ func TestUniqueQueue(t *testing.T) {
 			{input: "item2", mapValue: true},
 		}
 		for _, item := range prepareQueue {
-			queue.Push(item.input)
+			queue.Insert(item.input)
 			if item.mapValue {
 				queue.SetMapValue(item.input, item.mapValue)
 			}
@@ -147,7 +147,7 @@ func TestUniqueQueue(t *testing.T) {
 			want  bool
 			err   error
 		}{
-			{input: "ItemNeverPushed", want: false, err: ErrItemNotFound},
+			{input: "ItemNeverInserted", want: false, err: ErrItemNotFound},
 			{input: "item1", want: false, err: nil},
 			{input: "item2", want: true, err: nil},
 		}
@@ -185,7 +185,7 @@ func TestUniqueQueue(t *testing.T) {
 		}
 		for _, item := range tests {
 			if item.input != "" {
-				queue.Push(item.input)
+				queue.Insert(item.input)
 			}
 
 			got, err := queue.View(item.len)
