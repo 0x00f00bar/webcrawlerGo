@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"math"
 	"net/url"
 	"os"
@@ -82,7 +81,7 @@ func openDB(driver string, dsn string, dbConfig *dbConfig) (*sql.DB, error) {
 // based on dsn
 func getDBConnections(
 	dsn string,
-	logger *log.Logger,
+	loggers *loggers,
 ) (string, *dbConnections, error) {
 	// driver used for db connection
 	var driverName string
@@ -91,7 +90,7 @@ func getDBConnections(
 
 	// when DSN is empty use sqlite3 driver
 	if dsn == "" {
-		logger.Println("Using sqlite3 driver")
+		loggers.multiLogger.Println("Using sqlite3 driver")
 		driverName = sqlite.DriverNameSQLite
 
 		// writer config and dsn
@@ -132,7 +131,7 @@ func getDBConnections(
 		dbConns.reader = sqReaderDB
 
 	} else if strings.Contains(dsn, "postgres") {
-		logger.Println("Using postgres driver")
+		loggers.multiLogger.Println("Using postgres driver")
 		driverName = psql.DriverNamePgSQL
 
 		dbconf := &dbConfig{
@@ -158,11 +157,11 @@ func saveDbContentToDisk(
 	savePath string,
 	cutOffDate time.Time,
 	markedPaths []string,
-	logger *log.Logger,
+	loggers *loggers,
 ) error {
 
 	internal.CreateDirIfNotExists(savePath)
-	logger.Printf("Saving files to path: %s", savePath)
+	loggers.multiLogger.Printf("Saving files to path: %s", savePath)
 
 	// delete empty directory at path when no file saved due to err
 	var fileSaved bool
@@ -170,7 +169,7 @@ func saveDbContentToDisk(
 		if !fileSaved {
 			err := os.Remove(savePath)
 			if err != nil {
-				logger.Println("Error removing directory:", err)
+				loggers.multiLogger.Println("Error removing directory:", err)
 			}
 		}
 	}()
@@ -192,7 +191,7 @@ func saveDbContentToDisk(
 		if markedURL != "" {
 			msg += fmt.Sprintf(" for marked url '%s'", markedURL)
 		}
-		logger.Println(msg)
+		loggers.multiLogger.Println(msg)
 
 		totalPages := int(math.Ceil(float64(recordCount) / float64(defaultPageSize)))
 

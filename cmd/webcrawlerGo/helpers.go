@@ -47,7 +47,12 @@ func seperateCmdArgs(args string) []string {
 
 // listenForSignals will listen on sigChan for [os.Signal] and quit on SIGINT and SIGTERM
 // after calling cancel func.
-func listenForSignals(cancel context.CancelFunc, sigChan chan os.Signal, queue *queue.UniqueQueue, loggers *loggers) {
+func listenForSignals(
+	cancel context.CancelFunc,
+	sigChan chan os.Signal,
+	queue *queue.UniqueQueue,
+	loggers *loggers,
+) {
 	defer cancel()
 	// quit := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

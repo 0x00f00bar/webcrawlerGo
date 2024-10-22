@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
-	"sync"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -13,19 +15,22 @@ import (
 )
 
 var (
-	spinnerStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("63"))
-	helpStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
-	dotStyle      = helpStyle.UnsetMargins()
-	durationStyle = dotStyle
-	appStyle      = lipgloss.NewStyle().Margin(1, 2, 0, 2)
+	spinnerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("63"))
+	helpStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
+	dotStyle     = helpStyle.UnsetMargins()
+	appStyle     = lipgloss.NewStyle().Margin(1, 2, 0, 2)
 )
+
+// loggers stores multiple loggers
+type loggers struct {
+	fileLogger  *log.Logger
+	multiLogger *log.Logger
+}
 
 // crawLogger sends the events received to
 // [tea.Program]
 type crawLogger struct {
-	teaProgram   *tea.Program
-	mu           sync.Mutex
-	crawlerCount int
+	teaProgram *tea.Program
 }
 
 // Write implements [io.Writer] for crawLogger type
@@ -36,19 +41,8 @@ func (cl *crawLogger) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func (cl *crawLogger) Quit() {
-	cl.mu.Lock()
-	defer cl.mu.Unlock()
-	// quit when last crawler exits
-	if cl.crawlerCount > 1 {
-		cl.crawlerCount--
-	} else {
-		cl.teaProgram.Quit()
-	}
-}
-
-// initialiseLogger returns a log file handle f and a MultiWriter logger (os.Stdout & f)
-func initialiseLogger() (f *os.File, logger *log.Logger) {
+// initialiseLoggers returns a log file handle f and a MultiWriter logger (os.Stdout & f)
+func initialiseLoggers() (*os.File, *loggers) {
 	logFileName := fmt.Sprintf(
 		"./%s/logfile-%s.log",
 		logFolderName,
@@ -58,31 +52,42 @@ func initialiseLogger() (f *os.File, logger *log.Logger) {
 	if err != nil {
 		panic(err)
 	}
-	// not using with bubbletea Program
-	// return f, log.New(io.MultiWriter(os.Stdout, f), "", log.LstdFlags|log.Lshortfile)
-	return f, log.New(f, "", log.LstdFlags|log.Lshortfile)
+	loggers := &loggers{
+		multiLogger: log.New(io.MultiWriter(os.Stdout, f), "", log.LstdFlags|log.Lshortfile),
+		fileLogger:  log.New(f, "", log.LstdFlags|log.Lshortfile),
+	}
+	return f, loggers
 }
 
-type model struct {
+// teaProgModel for [tea.Program]
+type teaProgModel struct {
 	spinner  spinner.Model
 	messages []string
 	quitting bool
+	quitChan chan os.Signal
 }
 
-func newModel(numMsgs int) model {
+// newteaProgModel returns new teaProgModel
+func newteaProgModel(numMsgs int, sigChan chan os.Signal) teaProgModel {
 	s := spinner.New()
 	s.Style = spinnerStyle
-	return model{
+	messages := make([]string, numMsgs)
+	dots := dotStyle.Render(strings.Repeat(".", 45))
+	for i := range messages {
+		messages[i] = dots
+	}
+	return teaProgModel{
 		spinner:  s,
-		messages: make([]string, numMsgs),
+		messages: messages,
+		quitChan: sigChan,
 	}
 }
 
-func (m model) Init() tea.Cmd {
+func (m teaProgModel) Init() tea.Cmd {
 	return m.spinner.Tick
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m teaProgModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -103,7 +108,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
-func (m model) View() string {
+func (m teaProgModel) View() string {
 	var s string
 
 	if m.quitting {
@@ -123,7 +128,8 @@ func (m model) View() string {
 	}
 
 	if m.quitting {
-		s += "\n" + Red + "Waiting for crawlers... " + Reset + "\n\n"
+		m.quitChan <- syscall.SIGINT
+		s += "\n" + Red + "Waiting for crawlers to quit... " + Reset + "\n\n"
 	}
 
 	return appStyle.Render(s)

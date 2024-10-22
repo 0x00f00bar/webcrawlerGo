@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	version = "0.7.0"
+	version = "0.8.5"
 	banner  = `
                 __                             __          ______    
  _      _____  / /_  ______________ __      __/ /__  _____/ ____/___ 
@@ -43,7 +43,7 @@ func main() {
 	v := internal.NewValidator()
 
 	// init file and os.Stdout logger
-	f, logger := initialiseLogger()
+	f, loggers := initialiseLoggers()
 	defer f.Close()
 	f.Write([]byte(banner + "\n" + "v" + version + "\n\n"))
 
@@ -51,13 +51,13 @@ func main() {
 	cmdArgs := parseCmdFlags(v, f)
 
 	// init and test db
-	driverName, dbConns, err := getDBConnections(*cmdArgs.dbDSN, logger)
+	driverName, dbConns, err := getDBConnections(*cmdArgs.dbDSN, loggers)
 	if err != nil {
 		exitCode = 1
-		logger.Println(err)
+		loggers.fileLogger.Println(err)
 		return
 	}
-	logger.Println("DB connection OK.")
+	loggers.multiLogger.Println("DB connection OK.")
 	defer dbConns.Close()
 
 	// if the driver used is sqlite3 consolidate the WAL journal to db
@@ -76,7 +76,7 @@ func main() {
 		err := psqlModels.InitDatabase(ctx, dbConns.writer)
 		if err != nil {
 			exitCode = 1
-			logger.Println(err)
+			loggers.multiLogger.Println(err)
 			return
 		}
 		m.URLs = psqlModels.URLModel
@@ -88,7 +88,7 @@ func main() {
 		err := sqliteModels.InitDatabase(ctx, dbConns.writer)
 		if err != nil {
 			exitCode = 1
-			logger.Println(err)
+			loggers.multiLogger.Println(err)
 			return
 		}
 		m.URLs = sqliteModels.URLModel
@@ -99,7 +99,10 @@ func main() {
 	q := queue.NewQueue()
 	q.Insert(cmdArgs.baseURL.String())
 
-	go listenForSignals(cancel, q, logger)
+	// chanel to get os signals
+	quit := make(chan os.Signal, 1)
+
+	go listenForSignals(cancel, quit, q, loggers)
 
 	if cmdArgs.dbToDisk {
 		err = saveDbContentToDisk(
@@ -109,13 +112,13 @@ func main() {
 			cmdArgs.savePath,
 			cmdArgs.cutOffDate,
 			cmdArgs.markedURLs,
-			logger,
+			loggers,
 		)
 		if err != nil {
 			exitCode = 1
-			logger.Printf("Error while saving to disk: %v\n", err)
+			loggers.multiLogger.Printf("Error while saving to disk: %v\n", err)
 		} else {
-			logger.Println("Transfer completed")
+			loggers.multiLogger.Println("Transfer completed")
 		}
 		return
 	}
@@ -133,15 +136,15 @@ func main() {
 		q,
 		m.URLs,
 		*cmdArgs.updateDaysPast,
-		logger,
+		loggers,
 		cmdArgs.markedURLs,
 	)
 	if err != nil {
 		exitCode = 1
-		logger.Println(err)
+		loggers.multiLogger.Println(err)
 		return
 	}
-	logger.Printf("Loaded %d URLs from model\n", loadedURLs)
+	loggers.multiLogger.Printf("Loaded %d URLs from model\n", loadedURLs)
 
 	// if retry == 0, don't init request stats map
 	var retryRequestStats map[string]int
@@ -150,11 +153,10 @@ func main() {
 	} else {
 		retryRequestStats = nil
 	}
-	p := tea.NewProgram(newModel(*cmdArgs.nCrawlers))
+	p := tea.NewProgram(newteaProgModel(int(float32(*cmdArgs.nCrawlers)*float32(1.5)), quit))
 
 	prettyLogger := &crawLogger{
-		teaProgram:   p,
-		crawlerCount: *cmdArgs.nCrawlers,
+		teaProgram: p,
 	}
 
 	crawlerCfg := &webcrawler.CrawlerConfig{
@@ -166,7 +168,7 @@ func main() {
 		IgnorePatterns: cmdArgs.ignorePattern,
 		RequestDelay:   cmdArgs.reqDelay,
 		IdleTimeout:    cmdArgs.idleTimeout,
-		Logger:         logger,
+		Logger:         loggers.fileLogger,
 		RetryTimes:     *cmdArgs.retryTime,
 		FailedRequests: retryRequestStats,
 		Ctx:            ctx,
@@ -177,7 +179,7 @@ func main() {
 	crawlerArmy, err := webcrawler.NNewCrawlers(*cmdArgs.nCrawlers, "crawler", crawlerCfg)
 	if err != nil {
 		exitCode = 1
-		logger.Println(err)
+		loggers.multiLogger.Println(err)
 		return
 	}
 
@@ -208,6 +210,6 @@ func main() {
 
 	// wait for crawlers
 	wg.Wait()
-	logger.Println("Done")
-	fmt.Print(Red, "Done", Reset, "\n")
+	loggers.fileLogger.Println("Done")
+	fmt.Print(Red, "  Done", Reset, "\n")
 }

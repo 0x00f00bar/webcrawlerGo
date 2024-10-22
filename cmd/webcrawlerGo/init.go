@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/url"
 	"time"
 
@@ -25,7 +24,7 @@ func loadUrlsToQueue(
 	q *queue.UniqueQueue,
 	m models.URLModel,
 	updateInterval int,
-	logger *log.Logger,
+	loggers *loggers,
 	markedURLs []string,
 ) (int, error) {
 	dburls, err := m.GetAll("is_monitored")
@@ -44,7 +43,7 @@ func loadUrlsToQueue(
 
 			parsedUrlDB, err := url.Parse(urlDB.URL)
 			if err != nil {
-				logger.Printf("Unable to parse url '%s' from db\n", urlDB.URL)
+				loggers.multiLogger.Printf("Unable to parse url '%s' from db\n", urlDB.URL)
 			}
 			// only process URLs belonging to baseURL
 			if parsedUrlDB.Hostname() == baseURL.Hostname() {
