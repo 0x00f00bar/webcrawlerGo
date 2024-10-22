@@ -23,4 +23,5 @@ migrate-create:
 	else \
 		echo "Creating migration ... $(MIGRATION_NAME)"; \
 		migrate create -seq -ext ".sql" -dir "./models/psql/migrations" $(MIGRATION_NAME); \
+		migrate create -seq -ext ".sql" -dir "./models/sqlite/migrations" $(MIGRATION_NAME); \
 	fi 
