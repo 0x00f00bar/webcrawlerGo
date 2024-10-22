@@ -3,12 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/0x00f00bar/webcrawlerGo/queue"
 )
@@ -47,21 +45,25 @@ func seperateCmdArgs(args string) []string {
 	return argList
 }
 
-func listenForSignals(cancel context.CancelFunc, queue *queue.UniqueQueue, logger *log.Logger) {
+// listenForSignals will listen on sigChan for [os.Signal] and quit on SIGINT and SIGTERM
+// after calling cancel func.
+func listenForSignals(
+	cancel context.CancelFunc,
+	sigChan chan os.Signal,
+	queue *queue.UniqueQueue,
+	loggers *loggers,
+) {
 	defer cancel()
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	// quit := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	// wait for signal
-	s := <-quit
+	s := <-sigChan
 	// clear queue
 	queue.Clear()
 
-	timeOut := 3 * time.Second
-
-	logger.Println("=============== SHUTDOWN INITIATED ===============")
-	logger.Printf("%s signal received", s.String())
-	logger.Printf("Will shutdown in %s\n", timeOut.String())
-	time.Sleep(timeOut)
+	loggers.fileLogger.Println("=============== SHUTDOWN INITIATED ===============")
+	loggers.fileLogger.Printf("%s signal received", s.String())
+	loggers.fileLogger.Println("Waiting for crawlers to quit...")
 }
 
 func printBanner() {

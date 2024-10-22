@@ -171,7 +171,11 @@ Crawler will exit after saving to disk.`,
 		fmt.Printf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " "))
 		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Save path", cmdArgs.savePath)))
 		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Cutoff date", cmdArgs.cutOffDate)))
-		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " "))))
+		f.Write(
+			[]byte(
+				fmt.Sprintf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " ")),
+			),
+		)
 	} else {
 		fmt.Printf("%-16s: %s\n", "User-Agent", *cmdArgs.userAgent)
 		fmt.Printf("%-16s: %d day(s)\n", "Update interval", *cmdArgs.updateDaysPast)

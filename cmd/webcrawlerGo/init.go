@@ -3,10 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
-	"log"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/0x00f00bar/webcrawlerGo/internal"
@@ -19,20 +16,6 @@ func init() {
 	internal.CreateDirIfNotExists(logFolderName)
 }
 
-// initialiseLogger returns a log file handle f and a MultiWriter logger (os.Stdout & f)
-func initialiseLogger() (f *os.File, logger *log.Logger) {
-	logFileName := fmt.Sprintf(
-		"./%s/logfile-%s.log",
-		logFolderName,
-		time.Now().Format("02-01-2006-15-04-05"),
-	)
-	f, err := os.OpenFile(logFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		panic(err)
-	}
-	return f, log.New(io.MultiWriter(os.Stdout, f), "", log.LstdFlags|log.Lshortfile)
-}
-
 // loadUrlsToQueue fetches all urls from URL model and loads them to queue.
 // Returns the number of URLs pushed to queue
 func loadUrlsToQueue(
@@ -41,7 +24,7 @@ func loadUrlsToQueue(
 	q *queue.UniqueQueue,
 	m models.URLModel,
 	updateInterval int,
-	logger *log.Logger,
+	loggers *loggers,
 	markedURLs []string,
 ) (int, error) {
 	dburls, err := m.GetAll("is_monitored")
@@ -60,7 +43,7 @@ func loadUrlsToQueue(
 
 			parsedUrlDB, err := url.Parse(urlDB.URL)
 			if err != nil {
-				logger.Printf("Unable to parse url '%s' from db\n", urlDB.URL)
+				loggers.multiLogger.Printf("Unable to parse url '%s' from db\n", urlDB.URL)
 			}
 			// only process URLs belonging to baseURL
 			if parsedUrlDB.Hostname() == baseURL.Hostname() {

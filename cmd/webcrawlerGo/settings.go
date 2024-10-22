@@ -14,7 +14,9 @@ const (
 	dbMaxConnIdleDuration = 10 * time.Minute
 	defaultPageSize       = 20
 
-	// defaultTimeout is used in http.Client and timeout while shutting down
+	// defaultTimeout is used in http.Client and timeout while shutting down.
+	// DB queries are not aware of this timeout, db queries timeout at 5s,
+	// keeping defaultTimeout lower than 5s may result in program exiting while a query is being processed.
 	defaultTimeout  = 5 * time.Second
 	dateLayout      = "2006-01-02"
 	timeStampLayout = dateLayout + "_15-04-05"

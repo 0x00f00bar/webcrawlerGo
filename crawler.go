@@ -51,12 +51,13 @@ type CrawlerConfig struct {
 	IgnorePatterns   []string           // URL pattern to ignore
 	RequestDelay     time.Duration      // delay between subsequent requests
 	IdleTimeout      time.Duration      // timeout after which crawler quits when queue is empty
-	Log              *log.Logger        // logger to use
+	Logger           *log.Logger        // will log to [os.Stdout] when nil and when no PrettyLogger; ONLY log to file if also using PrettyLogger
 	RetryTimes       int                // no. of times to retry failed request
 	FailedRequests   map[string]int     // map to store failed requests stats
 	KnownInvalidURLs *InvalidURLCache   // known map of invalid URLs
 	Ctx              context.Context    // context to quit on SIGINT/SIGTERM
 	robotsTxt        *string            // robots.txt as string (internal)
+	PrettyLogger     io.Writer          // optional logger to write to screen
 }
 
 // NewCrawler return pointer to a new Crawler
@@ -92,7 +93,7 @@ func NNewCrawlers(n int, namePrefix string, cfg *CrawlerConfig) ([]*Crawler, err
 }
 
 // validateConfig verifies crawler config
-// if Log is nil, creates new os.Stdout default logger
+// if Logger is nil, creates new os.Stdout default logger
 func validateConfig(cfg *CrawlerConfig) error {
 	if cfg.Queue == nil {
 		return errors.New("crawler: queue cannot be nil")
@@ -113,8 +114,21 @@ func validateConfig(cfg *CrawlerConfig) error {
 		return errors.New("crawler: Base URL should be absolute")
 	}
 
-	if cfg.Log == nil {
-		cfg.Log = log.New(os.Stdout, "crawler", log.LstdFlags|log.Lshortfile)
+	if cfg.Logger == nil {
+		if cfg.PrettyLogger == nil {
+			cfg.Logger = log.New(os.Stdout, "crawler", log.LstdFlags|log.Lshortfile)
+		} else {
+			logFileName := fmt.Sprintf(
+				"./webcrawlerGo-%s.log",
+				time.Now().Format("02-01-2006-15-04-05"),
+			)
+			f, err := os.OpenFile(logFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				panic(err)
+			}
+			cfg.Logger = log.New(f, "", log.LstdFlags|log.Lshortfile)
+		}
+
 	}
 
 	// get robots.txt file
@@ -141,7 +155,8 @@ func (c *Crawler) Crawl(client *http.Client) {
 	for {
 		select {
 		case <-c.Ctx.Done():
-			c.Log.Printf("%s: Termination signal received. Shutting down\n", c.Name)
+			msg := fmt.Sprintf("%s: Termination signal received. Shutting down", c.Name)
+			c.Log(msg)
 			return
 		default:
 			// get item from queue
@@ -150,7 +165,8 @@ func (c *Crawler) Crawl(client *http.Client) {
 			// if queue is empty wait for defaultSleepDuration; retry upto idle timeout before quitting
 			if errors.Is(err, queue.ErrEmptyQueue) {
 				if time.Since(startTime) > c.IdleTimeout {
-					c.Log.Printf("%s: Queue is empty, quitting.\n", c.Name)
+					msg := fmt.Sprintf("%s: Queue is empty, quitting.", c.Name)
+					c.Log(msg)
 					return
 				}
 				time.Sleep(defaultSleepDuration)
@@ -159,7 +175,13 @@ func (c *Crawler) Crawl(client *http.Client) {
 
 			resp, err := c.getURL(urlpath, client)
 			if err != nil {
-				c.Log.Printf("%s: Error in GET request: %v for url: '%s'\n", c.Name, err, urlpath)
+				msg := fmt.Sprintf(
+					"%s: Error in GET request: %v for url: '%s'",
+					c.Name,
+					err,
+					urlpath,
+				)
+				c.Log(msg)
 				// check that FailedRequests is not nil (when map is not initialised i.e. RetryTimes==0)
 				if c.FailedRequests != nil && c.FailedRequests[urlpath] < c.RetryTimes {
 					// and add the url back to queue
@@ -171,30 +193,31 @@ func (c *Crawler) Crawl(client *http.Client) {
 
 			// if response not 200 OK
 			if resp.StatusCode != http.StatusOK {
-				c.Log.Printf(
-					"%s: Invalid HTTP status code received %d for url: '%s'\n",
+				msg := fmt.Sprintf("%s: Invalid HTTP status code received %d for url: '%s'",
 					c.Name,
 					resp.StatusCode,
 					urlpath,
 				)
+				c.Log(msg)
 				continue
 			}
 
 			doc, err := goquery.NewDocumentFromReader(resp.Body)
 			if err != nil {
-				c.Log.Printf("%s: Could not read response body: %v", c.Name, err)
+				msg := fmt.Sprintf("%s: Could not read response body: %v", c.Name, err)
+				c.Log(msg)
 				continue
 			}
 
 			// if status OK fetch all hrefs embedded in the page
 			hrefs, err := c.fetchEmbeddedURLs(doc)
 			if err != nil {
-				c.Log.Printf(
-					"%s: Failed to fetch embedded URLs for URL '%s' : %v\n",
+				msg := fmt.Sprintf("%s: Failed to fetch embedded URLs for URL '%s' : %v",
 					c.Name,
 					urlpath,
 					err,
 				)
+				c.Log(msg)
 				continue
 			}
 
@@ -202,19 +225,20 @@ func (c *Crawler) Crawl(client *http.Client) {
 			for _, href := range hrefs {
 				if c.isValidURL(href) {
 					if ok := c.Queue.Insert(href); ok {
-						c.Log.Printf("%s: Added url '%s' to queue\n", c.Name, href)
+						msg := fmt.Sprintf("%s: Added url '%s' to queue", c.Name, href)
+						c.Log(msg)
 						// temp time var as time.Time value cannot be set to nil
 						// and we don't want to set URL.LastSaved and URL.LastChecked right now
 						var t time.Time
 						u := models.NewURL(href, t, t, c.isMarkedURL(href))
 						err = c.Models.URLs.Insert(u)
 						if err != nil {
-							c.Log.Printf(
-								"%s: FATAL : Failed to insert url '%s' to model: %v\n",
+							msg = fmt.Sprintf("%s: FATAL : Failed to insert url '%s' to model: %v",
 								c.Name,
 								href,
 								err,
 							)
+							c.Log(msg)
 							runtime.Goexit()
 						}
 						// if url is marked set value to true to fetch its content
@@ -223,7 +247,8 @@ func (c *Crawler) Crawl(client *http.Client) {
 						}
 					}
 				} else {
-					c.Log.Printf("%s: Invalid url: %s\n", c.Name, href)
+					msg := fmt.Sprintf("%s: Invalid url: %s", c.Name, href)
+					c.Log(msg)
 					c.KnownInvalidURLs.cache.Store(href, true)
 				}
 			}
@@ -231,11 +256,12 @@ func (c *Crawler) Crawl(client *http.Client) {
 			// map value of current URL
 			saveURLContent, err := c.Queue.GetMapValue(urlpath)
 			if errors.Is(err, queue.ErrItemNotFound) {
-				c.Log.Printf(
-					"%s: FATAL : URL not found in queue map '%s'. Quitting.\n",
+				msg := fmt.Sprintf(
+					"%s: FATAL : URL not found in queue map '%s'. Quitting.",
 					c.Name,
 					urlpath,
 				)
+				c.Log(msg)
 				runtime.Goexit()
 			}
 
@@ -243,10 +269,12 @@ func (c *Crawler) Crawl(client *http.Client) {
 			if c.isMarkedURL(urlpath) || saveURLContent {
 				err = c.savePageContent(urlpath, doc)
 				if err != nil {
-					c.Log.Printf("%s: FATAL. %s\n", c.Name, err)
+					msg := fmt.Sprintf("%s: FATAL. %s", c.Name, err)
+					c.Log(msg)
 					runtime.Goexit()
 				}
-				c.Log.Printf("%s: Saved content of url '%s'\n", c.Name, urlpath)
+				msg := fmt.Sprintf("%s: Saved content of url '%s'", c.Name, urlpath)
+				c.Log(msg)
 
 				// set key value to false as url is now processed
 				c.Queue.SetMapValue(urlpath, false)
@@ -254,7 +282,8 @@ func (c *Crawler) Crawl(client *http.Client) {
 				// else update LastChecked field
 				err = c.updateLastCheckedDate(urlpath, time.Now())
 				if err != nil {
-					c.Log.Printf("%s: FATAL. %s\n", c.Name, err)
+					msg := fmt.Sprintf("%s: FATAL. %s", c.Name, err)
+					c.Log(msg)
 					runtime.Goexit()
 				}
 			}
@@ -284,7 +313,8 @@ func (c *Crawler) savePageContent(urlpath string, doc *goquery.Document) error {
 		return fmt.Errorf("%s: could not read page content: %v", c.Name, err)
 	}
 	if len(contentStr) < 100 {
-		c.Log.Printf("FATAL. Empty/no content. url: '%s'; len: %d", urlpath, len(contentStr))
+		msg := fmt.Sprintf("FATAL. Empty/no content. url: '%s'; len: %d", urlpath, len(contentStr))
+		c.Log(msg)
 		runtime.Goexit()
 	}
 	newPage := models.NewPage(uModel.ID, contentStr)
@@ -380,7 +410,8 @@ func (c *Crawler) isValidURL(href string) bool {
 
 	// check if path is allowed by robots.txt
 	if !grobotstxt.AgentAllowed(*c.robotsTxt, c.UserAgent, href) {
-		c.Log.Printf("%s: Not allowed by robots.txt: %s\n", c.Name, href)
+		msg := fmt.Sprintf("%s: Not allowed by robots.txt: %s", c.Name, href)
+		c.Log(msg)
 		return false
 	}
 
@@ -402,6 +433,14 @@ func (c *Crawler) getURL(url string, client *http.Client) (*http.Response, error
 	req.Header.Set("User-Agent", c.UserAgent)
 
 	return client.Do(req)
+}
+
+// Log writes the msg to [Crawler.Logger] and [Crawler.PrettyLogger] when present
+func (c *Crawler) Log(msg string) {
+	c.Logger.Printf(msg + "\n")
+	if c.PrettyLogger != nil {
+		c.PrettyLogger.Write([]byte(msg))
+	}
 }
 
 // getRobotsTxt will return the <baseURL>/robots.txt file if found as string
