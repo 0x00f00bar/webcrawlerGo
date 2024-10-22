@@ -1,4 +1,4 @@
-# webcrawlerGo v0.7.0
+# webcrawlerGo
  Crawl a website and save marked URL's contents to DB
 
 ### Summary:
