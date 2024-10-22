@@ -19,6 +19,14 @@ var (
 	helpStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
 	dotStyle     = helpStyle.UnsetMargins()
 	appStyle     = lipgloss.NewStyle().Margin(1, 2, 0, 2)
+
+	textColorMap = map[string]string{
+		"Error":   Red,
+		"Invalid": Red,
+		"FATAL":   Red,
+		"Added":   Green,
+		"Saved":   Green,
+	}
 )
 
 // loggers stores multiple loggers
@@ -37,7 +45,12 @@ type crawLogger struct {
 func (cl *crawLogger) Write(p []byte) (n int, err error) {
 	// cl.mu.Lock()
 	// defer cl.mu.Unlock()
-	cl.teaProgram.Send(string(p))
+	msgSlice := strings.Split(string(p), ":")
+	msgSlice[0] = Cyan + msgSlice[0] + Reset
+
+	msg := strings.Join(msgSlice, ":")
+
+	cl.teaProgram.Send(colorAroundTexts(msg, textColorMap))
 	return len(p), nil
 }
 
@@ -112,9 +125,9 @@ func (m teaProgModel) View() string {
 	var s string
 
 	if m.quitting {
-		s += "Aaand... we're done!"
+		s += Cyan + "Aaand... we're done!" + Reset
 	} else {
-		s += m.spinner.View() + " Crawlers be crawling..."
+		s += m.spinner.View() + Red + " Crawlers be crawling..." + Reset
 	}
 
 	s += Reset + "\n\n"
