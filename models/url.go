@@ -10,32 +10,27 @@ import (
 
 var URLColumns = []string{
 	"id", "url", "first_encountered", "last_checked",
-	"last_saved", "is_monitored", "version",
+	"last_saved", "is_monitored", "is_alive", "version",
 }
 
 // Queries related to urls table
 const (
-	QuerySelectURL   = "SELECT id, url, first_encountered, last_checked, last_saved, is_monitored, version FROM urls"
-	QueryGetURLById  = QuerySelectURL + " WHERE id = __ARG__"
-	QueryGetURLByURL = QuerySelectURL + " WHERE url = __ARG__"
+	QuerySelectURL   = "SELECT id, url, first_encountered, last_checked, last_saved, is_monitored, is_alive version FROM urls "
+	QueryGetURLById  = QuerySelectURL + "WHERE id = __ARG__"
+	QueryGetURLByURL = QuerySelectURL + "WHERE url = __ARG__"
 	QueryInsertURL   = `
 	INSERT INTO urls (url, last_checked, last_saved, is_monitored)
 	VALUES (__ARG__, __ARG__, __ARG__, __ARG__)
 	RETURNING id, first_encountered, version`
 	QueryUpdateURL = `
 	UPDATE urls
-	SET last_checked = __ARG__, last_saved = __ARG__, is_monitored = __ARG__, version = version + 1
+	SET last_checked = __ARG__, last_saved = __ARG__, is_monitored = __ARG__, is_alive = __ARG__, version = version + 1
 	WHERE id = __ARG__ AND version = __ARG__
 	RETURNING version`
-	QueryDeleteURL = `DELETE from urls WHERE id = __ARG__`
-	QueryGetAllURL = `
-	SELECT id, url, first_encountered, last_checked, last_saved, is_monitored, version
-	FROM urls
-	ORDER BY __ARG__`
-	QueryGetAllMonitoredURL = `
-	SELECT id, url, first_encountered, last_checked, last_saved, is_monitored, version
-	FROM urls
-	WHERE is_monitored = true
+	QueryDeleteURL          = `DELETE from urls WHERE id = __ARG__`
+	QueryGetAllURL          = QuerySelectURL + "ORDER BY __ARG__"
+	QueryGetAllMonitoredURL = QuerySelectURL + `
+	WHERE is_monitored = true AND is_alive = true
 	ORDER BY __ARG__`
 )
 
@@ -48,6 +43,7 @@ type URL struct {
 	LastChecked      time.Time
 	LastSaved        time.Time
 	IsMonitored      bool
+	IsAlive          bool
 	Version          uint
 }
 
@@ -59,6 +55,7 @@ func NewURL(url string, lastChecked, lastSaved time.Time, isMonitored bool) *URL
 		LastChecked:      lastChecked,
 		LastSaved:        lastSaved,
 		IsMonitored:      isMonitored,
+		IsAlive:          true,
 	}
 }
 
@@ -75,10 +72,12 @@ func URLGetById(id int, query string, db *sql.DB) (*URL, error) {
 
 	err := db.QueryRowContext(ctx, query, id).Scan(
 		&url.ID,
+		&url.URL,
 		&url.FirstEncountered,
 		&url.LastChecked,
 		&url.LastSaved,
 		&url.IsMonitored,
+		&url.IsAlive,
 		&url.Version,
 	)
 	if err != nil {
@@ -110,6 +109,7 @@ func URLGetByURL(urlStr string, query string, db *sql.DB) (*URL, error) {
 		&url.LastChecked,
 		&url.LastSaved,
 		&url.IsMonitored,
+		&url.IsAlive,
 		&url.Version,
 	)
 	if err != nil {
@@ -142,7 +142,7 @@ func URLUpdate(m *URL, query string, db *sql.DB) error {
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultDBTimeout)
 	defer cancel()
 
-	args := []interface{}{m.LastChecked, m.LastSaved, m.IsMonitored, m.ID, m.Version}
+	args := []interface{}{m.LastChecked, m.LastSaved, m.IsMonitored, m.IsAlive, m.ID, m.Version}
 
 	err := db.QueryRowContext(ctx, query, args...).Scan(&m.Version)
 	if err != nil {
@@ -210,6 +210,7 @@ func URLGetAll(orderBy string, query string, db *sql.DB) ([]*URL, error) {
 			&url.LastChecked,
 			&url.LastSaved,
 			&url.IsMonitored,
+			&url.IsAlive,
 			&url.Version,
 		)
 		if err != nil {
