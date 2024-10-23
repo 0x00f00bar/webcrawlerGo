@@ -138,6 +138,7 @@ func main() {
 		*cmdArgs.updateDaysPast,
 		loggers,
 		cmdArgs.markedURLs,
+		cmdArgs.updateHrefs,
 	)
 	if err != nil {
 		exitCode = 1

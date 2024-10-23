@@ -26,6 +26,7 @@ func loadUrlsToQueue(
 	updateInterval int,
 	loggers *loggers,
 	markedURLs []string,
+	updateHrefs bool,
 ) (int, error) {
 	dburls, err := m.GetAll("is_monitored")
 	if err != nil {
@@ -40,6 +41,13 @@ func loadUrlsToQueue(
 		case <-ctx.Done():
 			return urlsPushedToQ, nil
 		default:
+			// skip dead urls
+			// crawler will never crawl a dead url,
+			// manually set the URL alive if the URL is back online
+			if !urlDB.IsAlive {
+				q.SetMapValue(urlDB.URL, false)
+				continue
+			}
 
 			parsedUrlDB, err := url.Parse(urlDB.URL)
 			if err != nil {
@@ -67,7 +75,7 @@ func loadUrlsToQueue(
 						return 0, fmt.Errorf("unable to update url '%s': %v", urlDB.URL, err)
 					}
 
-				// else just add to map with false value to not access that URL
+				// else just add to map with false value to not save the URL content
 				default:
 					fetchContent = false
 				}
@@ -75,6 +83,9 @@ func loadUrlsToQueue(
 				if fetchContent {
 					q.InsertForce(urlDB.URL)
 					q.SetMapValue(urlDB.URL, fetchContent)
+					urlsPushedToQ += 1
+				} else if updateHrefs {
+					q.InsertForce(urlDB.URL)
 					urlsPushedToQ += 1
 				} else {
 					q.SetMapValue(urlDB.URL, fetchContent)

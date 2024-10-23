@@ -25,6 +25,7 @@ type cmdFlags struct {
 	reqDelay       time.Duration // -req-delay
 	retryTime      *int          // -retry
 	userAgent      *string       // -ua
+	updateHrefs    bool          // -update-hrefs
 }
 
 // parseCmdFlags will parse cmd flags and validate them.
@@ -94,6 +95,12 @@ Crawler will exit after saving to disk.`,
 		defaultCutOffDate,
 		"Cut-off date upto which the latest crawled pages will be saved to disk.\nFormat: YYYY-MM-DD. Applicable only with 'save' flag.\n",
 	)
+	updateHrefs := flag.Bool(
+		"update-hrefs",
+		false,
+		`Use this flag to update embedded HREFs in all saved and alive URLs
+belonging to the baseurl.`,
+	)
 
 	flag.Parse()
 
@@ -146,6 +153,7 @@ Crawler will exit after saving to disk.`,
 		dbToDisk:       *dbToDisk,
 		savePath:       *savePath,
 		cutOffDate:     parsedCutOffDate,
+		updateHrefs:    *updateHrefs,
 	}
 
 	validateFlags(v, &cmdArgs)
