@@ -15,7 +15,7 @@ var URLColumns = []string{
 
 // Queries related to urls table
 const (
-	QuerySelectURL   = "SELECT id, url, first_encountered, last_checked, last_saved, is_monitored, is_alive version FROM urls "
+	QuerySelectURL   = "SELECT id, url, first_encountered, last_checked, last_saved, is_monitored, is_alive, version FROM urls "
 	QueryGetURLById  = QuerySelectURL + "WHERE id = __ARG__"
 	QueryGetURLByURL = QuerySelectURL + "WHERE url = __ARG__"
 	QueryInsertURL   = `

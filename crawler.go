@@ -199,6 +199,25 @@ func (c *Crawler) Crawl(client *http.Client) {
 					urlpath,
 				)
 				c.Log(msg)
+
+				// mark URL as dead if HTTP 404 encountered
+				// crawler will never crawl a URL again which is marked as dead
+				// but will know that it have seen the URL before through the queue
+				if resp.StatusCode == http.StatusNotFound {
+					uModel, err := c.Models.URLs.GetByURL(urlpath)
+					if err != nil {
+						c.Log(fmt.Sprintf("%s: Error: could not get URL '%s' from model: %v", c.Name, urlpath, err))
+						runtime.Goexit()
+					}
+					uModel.IsAlive = false
+					uModel.LastChecked = time.Now()
+					err = c.Models.URLs.Update(uModel)
+					if err != nil {
+						c.Log(fmt.Sprintf("%s: FATAL. could not update URL '%s' model: %v", c.Name, uModel.URL, err))
+						runtime.Goexit()
+					}
+				}
+
 				continue
 			}
 
@@ -280,7 +299,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 				c.Queue.SetMapValue(urlpath, false)
 			} else {
 				// else update LastChecked field
-				err = c.updateLastCheckedDate(urlpath, time.Now())
+				err = c.updateURLLastCheckedDate(urlpath, time.Now())
 				if err != nil {
 					msg := fmt.Sprintf("%s: FATAL. %s", c.Name, err)
 					c.Log(msg)
@@ -306,45 +325,43 @@ func (c *Crawler) savePageContent(urlpath string, doc *goquery.Document) error {
 	// it is saved to queue AND db
 	uModel, err := c.Models.URLs.GetByURL(urlpath)
 	if err != nil {
-		return fmt.Errorf("%s: could not get URL from model: %v", c.Name, err)
+		return fmt.Errorf("could not get URL from model: %v", err)
 	}
 	contentStr, err := doc.Html()
 	if err != nil {
-		return fmt.Errorf("%s: could not read page content: %v", c.Name, err)
+		return fmt.Errorf("could not read page content: %v", err)
 	}
 	if len(contentStr) < 100 {
-		msg := fmt.Sprintf("FATAL. Empty/no content. url: '%s'; len: %d", urlpath, len(contentStr))
-		c.Log(msg)
-		runtime.Goexit()
+		return fmt.Errorf("empty/no content. url: '%s'; len: %d", urlpath, len(contentStr))
 	}
 	newPage := models.NewPage(uModel.ID, contentStr)
 	if err = c.Models.Pages.Insert(newPage); err != nil {
-		return fmt.Errorf("%s: could not insert page into model: %v", c.Name, err)
+		return fmt.Errorf("could not insert page into model: %v", err)
 	}
 	uModel.LastChecked = time.Now()
 	uModel.LastSaved = time.Now()
 	if err = c.Models.URLs.Update(uModel); err != nil {
-		return fmt.Errorf("%s: could not update URL model: %v", c.Name, err)
+		return fmt.Errorf("could not update URL model: %v", err)
 	}
 	return nil
 }
 
-// updateLastCheckedDate updates the LastChecked field of URL
-func (c *Crawler) updateLastCheckedDate(urlpath string, datetime time.Time) error {
+// updateURLLastCheckedDate updates the LastChecked field of URL
+func (c *Crawler) updateURLLastCheckedDate(urlpath string, datetime time.Time) error {
 	// GetByURL should not fail because whenever a new URL is encountered
 	// it is saved to queue AND db
 	uModel, err := c.Models.URLs.GetByURL(urlpath)
 	if err != nil {
-		return fmt.Errorf("%s: could not get URL '%s' from model: %v", c.Name, urlpath, err)
+		return fmt.Errorf("could not get URL '%s' from model: %v", urlpath, err)
 	}
 	uModel.LastChecked = datetime
 	if err = c.Models.URLs.Update(uModel); err != nil {
-		return fmt.Errorf("%s: could not update URL model: %v", c.Name, err)
+		return fmt.Errorf("could not update URL model: %v", err)
 	}
 	return nil
 }
 
-// fetchEmbeddedURLs will fetch all values in href attribute of <a> tag
+// fetchEmbeddedURLs will fetch all values in href attribute of <a> tag from doc
 func (c *Crawler) fetchEmbeddedURLs(doc *goquery.Document) ([]string, error) {
 	hrefs := []string{}
 

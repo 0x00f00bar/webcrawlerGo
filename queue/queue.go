@@ -110,7 +110,7 @@ func (q *UniqueQueue) Insert(item string) (success bool) {
 }
 
 // InsertForce appends item to the queue WITHOUT checking that the item was seen before.
-// Useful when item was not processed successfully and needs to be reprocessed. Or while
+// Useful when item was not processed successfully and/or needs to be reprocessed. Or while
 // bulk loading from unique set.
 //
 // Care: Map is case-sensitive. Use strings.ToLower to make case-insensitive.
