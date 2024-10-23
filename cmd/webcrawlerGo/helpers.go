@@ -75,18 +75,9 @@ func listenForSignals(
 }
 
 func printBanner() {
-	fmt.Printf(Cyan + "\nWho are we?      : " + Red + "web crawlers!" + Reset)
-	fmt.Printf(Cyan + "\nWhat do we want? : " + Red + "To crawl the web!" + Reset)
-	fmt.Println(Red + banner + Reset)
-	fmt.Printf(Cyan+"v%s\n\n"+Reset, version)
-}
-
-// colorAroundTexts concats color around texts
-func colorAroundTexts(s string, textColorMap map[string]string) string {
-	for k, v := range textColorMap {
-		if strings.Contains(s, k) {
-			return strings.ReplaceAll(s, k, v+k+Reset)
-		}
-	}
-	return s
+	fmt.Println("")
+	fmt.Println(cyanStyle.Render("Who are we?      : ") + redStyle.Render("web crawlers!"))
+	fmt.Println(cyanStyle.Render("What do we want? : ") + redStyle.Render("To crawl the web!"))
+	fmt.Println(redStyle.Margin(0, 0, 0, 2).Render(banner))
+	fmt.Println(cyanStyle.Render("v" + version))
 }

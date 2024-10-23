@@ -8,10 +8,9 @@ import (
 	"sync"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
-
-	tea "github.com/charmbracelet/bubbletea"
 
 	webcrawler "github.com/0x00f00bar/webcrawlerGo"
 	"github.com/0x00f00bar/webcrawlerGo/internal"
@@ -196,5 +195,5 @@ func main() {
 	// wait for crawlers
 	wg.Wait()
 	loggers.fileLogger.Println("Done")
-	fmt.Print(Red, "  Done", Reset, "\n")
+	fmt.Println(redStyle.Margin(0, 0, 1, 2).Render("Done"))
 }

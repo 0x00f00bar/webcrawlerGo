@@ -157,7 +157,6 @@ func saveDbContentToDisk(
 	markedPaths []string,
 	loggers *loggers,
 ) error {
-
 	baseurl := cmdArgs.baseURL
 	savePath := cmdArgs.savePath
 	cutOffDate := cmdArgs.cutOffDate
@@ -169,6 +168,9 @@ func saveDbContentToDisk(
 	var fileSaved bool
 	defer func() {
 		if !fileSaved {
+			loggers.multiLogger.Println(
+				"No files were saved, removing empty directory at " + savePath,
+			)
 			err := os.Remove(savePath)
 			if err != nil {
 				loggers.multiLogger.Println("Error removing directory:", err)

@@ -158,61 +158,45 @@ belonging to the baseurl.`,
 
 	validateFlags(v, &cmdArgs)
 	if !v.Valid() {
-		fmt.Fprintf(os.Stderr, "Invalid flag values:\n")
+		fmt.Println(redStyle.Render("Invalid flag values:"))
 		for k, v := range v.Errors {
-			fmt.Fprintf(os.Stderr, "%-9s : %s\n", k, v)
+			fmt.Printf("%-9s : %s\n", k, v)
 		}
 		fmt.Println("")
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	fmt.Println(Red + "Running crawler with the following options:" + Reset)
-	fmt.Printf(Cyan+"%-16s: %s\n", "Base URL", cmdArgs.baseURL.String())
-	fmt.Printf("%-16s: %t\n", "DB-2-Disk", cmdArgs.dbToDisk)
-	f.Write([]byte("Running crawler with the following options:\n"))
-	f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Base URL", cmdArgs.baseURL.String())))
-	f.Write([]byte(fmt.Sprintf("%-16s: %t\n", "DB-2-Disk", cmdArgs.dbToDisk)))
+	printAndLog(printRed, f, "Running crawler with the following options:")
+	printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Base URL", cmdArgs.baseURL.String()))
+	printAndLog(printCyan, f, fmt.Sprintf("%-16s: %t", "DB-2-Disk", cmdArgs.dbToDisk))
 	if cmdArgs.dbToDisk {
-		fmt.Printf("%-16s: %s\n", "Save path", cmdArgs.savePath)
-		fmt.Printf("%-16s: %s\n", "Cutoff date", cmdArgs.cutOffDate)
-		fmt.Printf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " "))
-		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Save path", cmdArgs.savePath)))
-		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Cutoff date", cmdArgs.cutOffDate)))
-		f.Write(
-			[]byte(
-				fmt.Sprintf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " ")),
-			),
+		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Save path", cmdArgs.savePath))
+		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Cutoff date", cmdArgs.cutOffDate))
+		printAndLog(
+			printCyan,
+			f,
+			fmt.Sprintf("%-16s: %s", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " ")),
 		)
 	} else {
-		fmt.Printf("%-16s: %s\n", "User-Agent", *cmdArgs.userAgent)
-		fmt.Printf("%-16s: %t\n", "Updating HREFs", cmdArgs.updateHrefs)
-		fmt.Printf("%-16s: %d day(s)\n", "Update interval", *cmdArgs.updateDaysPast)
-		fmt.Printf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " "))
-		fmt.Printf("%-16s: %s\n", "Ignored Pattern", strings.Join(cmdArgs.ignorePattern, " "))
-		fmt.Printf("%-16s: %d\n", "Crawler count", *cmdArgs.nCrawlers)
-		fmt.Printf("%-16s: %s\n", "Idle time", cmdArgs.idleTimeout)
-		fmt.Printf("%-16s: %s\n", "Request delay", cmdArgs.reqDelay)
-		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "User-Agent", *cmdArgs.userAgent)))
-		f.Write([]byte(fmt.Sprintf("%-16s: %t\n", "Updating HREFs", cmdArgs.updateHrefs)))
-		f.Write([]byte(fmt.Sprintf("%-16s: %d day(s)\n", "Update interval", *cmdArgs.updateDaysPast)))
-		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " "))))
-		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Ignored Pattern", strings.Join(cmdArgs.ignorePattern, " "))))
-		f.Write([]byte(fmt.Sprintf("%-16s: %d\n", "Crawler count", *cmdArgs.nCrawlers)))
-		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Idle time", cmdArgs.idleTimeout)))
-		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Request delay", cmdArgs.reqDelay)))
+		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "User-Agent", *cmdArgs.userAgent))
+		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %t", "Updating HREFs", cmdArgs.updateHrefs))
+		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %d day(s)", "Update interval", *cmdArgs.updateDaysPast))
+		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " ")))
+		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Ignored Pattern", strings.Join(cmdArgs.ignorePattern, " ")))
+		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %d", "Crawler count", *cmdArgs.nCrawlers))
+		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Idle time", cmdArgs.idleTimeout))
+		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Request delay", cmdArgs.reqDelay))
 	}
-	fmt.Print(Reset)
 
 	if len(cmdArgs.markedURLs) < 1 {
-		message := Yellow + "WARNING: Marked URLs list is empty. "
+		message := "WARNING: Marked URLs list is empty. "
 		if cmdArgs.dbToDisk {
-			fmt.Println(message + "This will save all monitored URLs.")
-			fmt.Println("TIP: Use -murls for filtering.")
+			message += "This will save all monitored URLs.\nTIP: Use -murls for filtering."
 		} else {
-			fmt.Println(message + "Crawlers will update URLs only from model which are set for monitoring.")
+			message += "Crawlers will update URLs only from model which are set for monitoring."
 		}
-		fmt.Print(Reset)
+		fmt.Println(yellowStyle.Render(message))
 	}
 
 	return &cmdArgs

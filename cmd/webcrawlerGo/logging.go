@@ -21,12 +21,12 @@ var (
 	dotStyle     = helpStyle.UnsetMargins()
 	appStyle     = lipgloss.NewStyle().Margin(1, 2, 0, 2)
 
-	textColorMap = map[string]string{
-		"Error":   Red,
-		"Invalid": Red,
-		"FATAL":   Red,
-		"Added":   Green,
-		"Saved":   Green,
+	textColorMap = map[string]*lipgloss.Style{
+		"Error":   &redStyle,
+		"Invalid": &redStyle,
+		"FATAL":   &redStyle,
+		"Added":   &greenStyle,
+		"Saved":   &greenStyle,
 	}
 )
 
@@ -49,7 +49,7 @@ func (cl *crawLogger) Log(msg string) {
 	// cl.mu.Lock()
 	// defer cl.mu.Unlock()
 	msgSlice := strings.Split(msg, ":")
-	msgSlice[0] = Cyan + msgSlice[0] + Reset
+	msgSlice[0] = cyanStyle.Render(msgSlice[0])
 
 	msg = strings.Join(msgSlice, ":")
 
@@ -141,12 +141,12 @@ func (m teaProgModel) View() string {
 	var s string
 
 	if m.quitting {
-		s += Cyan + "Aaand... we're done!" + Reset
+		s += cyanStyle.Render("Aaand... we're done!")
 	} else {
-		s += m.spinner.View() + Red + " Crawlers be crawling..." + Reset
+		s += m.spinner.View() + redStyle.Render(" Crawlers be crawling...")
 	}
 
-	s += Reset + "\n\n"
+	s += "\n\n"
 
 	for _, msg := range m.messages {
 		s += msg + "\n"
@@ -158,8 +158,16 @@ func (m teaProgModel) View() string {
 
 	if m.quitting {
 		m.quitChan <- syscall.SIGINT
-		s += "\n" + Red + "Waiting for crawlers to quit... " + Reset + "\n\n"
+		s += "\n" + redStyle.Render("Waiting for crawlers to quit... ") + "\n\n"
 	}
 
 	return appStyle.Render(s)
+}
+
+// printAndLog will print msg to [os.Stdout] using printFunc
+// and write to logFile. printFunc will print on new line and
+// new line will be added to msg while writing to logFile
+func printAndLog(printFunc func(string), logFile *os.File, msg string) {
+	printFunc(msg)
+	logFile.Write([]byte(msg + "\n"))
 }
