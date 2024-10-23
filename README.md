@@ -1,17 +1,17 @@
 # webcrawlerGo
- Crawl a website and save marked URL's contents to DB
+ Crawls a website and saves marked URL's contents to DB
 
 ### Summary:
 Crawler will crawl the provided Base URL and fetch all the valid hrefs on the page.
 Unseen hrefs will be added to a unique queue for fetching hrefs in them.
-Crawler will save the paths which are to be monitored (from models) or marked (from cmd arg).
-Crawler respects the robots.txt of the website being parsed.
+Crawler will save the contents of the paths which are to be monitored (from models) or marked (from cmd arg).
+Crawler respects the robots.txt of the website being crawled.
 
 Can use PostgreSQL when provided else will open a local sqlite3 database.
 
 ### Usage:
 
-    webcrawler -baseurl <url> -db-dsn "<dsn>" [OPTIONS]
+    webcrawler -baseurl <url> [OPTIONS]
 
     -baseurl string
         Absolute base URL to crawl (required).
@@ -19,7 +19,7 @@ Can use PostgreSQL when provided else will open a local sqlite3 database.
     -date string
         Cut-off date upto which the latest crawled pages will be saved to disk.
         Format: YYYY-MM-DD. Applicable only with 'save' flag.
-        (default "2024-10-17")
+        (default "<todays-date>")
     -days int
         Days past which monitored URLs should be updated (default 1)
     -db-dsn string
@@ -44,7 +44,7 @@ Can use PostgreSQL when provided else will open a local sqlite3 database.
         Number of crawlers to invoke (default 10)
     -path string
         Output path to save the content of crawled web pages.
-        Applicable only with 'save' flag. (default "./OUT/2024-10-17_15-03-37")
+        Applicable only with 'save' flag. (default "./OUT/<timestamp>")
     -req-delay string
         Delay between subsequent requests.
         Min: 1ms (default "50ms")
@@ -54,12 +54,16 @@ Can use PostgreSQL when provided else will open a local sqlite3 database.
         twice after initial failure. (default 2)
     -ua string
         User-Agent string to use while crawling
-        (default "webcrawlerGo/v0.7.0 - Web crawler in Go")
-    -v   Display app version
+        (default "webcrawlerGo/v<version> - Web crawler in Go")
+    -update-hrefs
+        Use this flag to update embedded HREFs in all saved and alive URLs
+        belonging to the baseurl.
+    -v  Display app version
 
   Note: 
    - Crawler will ignore the hrefs that begins with "file:", "javascript:", "mailto:", "tel:", "#", "data:"
    - Marking URLs with -murls option will set is_monitored=true in models.
    - Use -ignore option to ignore any pattern in url path, for e.g. to ignore paths with pdf files add '.pdf' to ignore
-   list
+   list.
+   - Will not follow URLs outside baseurl.
 

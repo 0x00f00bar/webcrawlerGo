@@ -48,7 +48,7 @@ func (pq PsqlDB) InitDatabase(ctx context.Context, db *sql.DB) error {
     version integer NOT NULL DEFAULT 1 CHECK (version >= 0)
 	);
 
-	CREATE UNIQUE INDEX idx_lower_url ON urls (LOWER(url));`
+	CREATE UNIQUE INDEX IF NOT EXISTS idx_lower_url ON urls (LOWER(url));`
 	createPagesTableQuery := `CREATE TABLE IF NOT EXISTS pages(
     id bigserial PRIMARY KEY,
     url_id bigint NOT NULL REFERENCES urls ON DELETE CASCADE,
@@ -56,8 +56,10 @@ func (pq PsqlDB) InitDatabase(ctx context.Context, db *sql.DB) error {
     content text NOT NULL
 	);`
 	createPagesURLIDIndex := `CREATE INDEX IF NOT EXISTS idx_page_url_id ON pages(url_id);`
+	alterURLAddIsAlive := `ALTER TABLE urls
+ADD COLUMN IF NOT EXISTS is_alive BOOLEAN DEFAULT TRUE;`
 
-	queries := []string{createURLTableQuery, createPagesTableQuery, createPagesURLIDIndex}
+	queries := []string{createURLTableQuery, createPagesTableQuery, createPagesURLIDIndex, alterURLAddIsAlive}
 
 	for _, query := range queries {
 		timeOutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)

@@ -37,10 +37,16 @@ func seperateCmdArgs(args string) []string {
 		return argList
 	}
 
+	// handle incorrect cmd args like
+	// ,, ,,, ,,value, ,,    ,, value  ,
 	if strings.Contains(args, ",") {
-		argList = strings.Split(args, ",")
-	} else {
-		argList = append(argList, args)
+		splitList := strings.Split(args, ",")
+		for _, str := range splitList {
+			if str != "" {
+				str = strings.TrimSpace(str)
+				argList = append(argList, str)
+			}
+		}
 	}
 	return argList
 }
