@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	version = "0.8.5"
+	version = "0.8.6"
 	banner  = `
                 __                             __          ______    
  _      _____  / /_  ______________ __      __/ /__  _____/ ____/___ 
@@ -105,15 +105,7 @@ func main() {
 	go listenForSignals(cancel, quit, q, loggers)
 
 	if cmdArgs.dbToDisk {
-		err = saveDbContentToDisk(
-			ctx,
-			m.Pages,
-			cmdArgs.baseURL,
-			cmdArgs.savePath,
-			cmdArgs.cutOffDate,
-			cmdArgs.markedURLs,
-			loggers,
-		)
+		err = saveDbContentToDisk(ctx, m.Pages, cmdArgs, cmdArgs.markedURLs, loggers)
 		if err != nil {
 			exitCode = 1
 			loggers.multiLogger.Printf("Error while saving to disk: %v\n", err)
@@ -130,16 +122,7 @@ func main() {
 	_ = m.URLs.Insert(u)
 
 	// get all urls from db, put all in queue's map
-	loadedURLs, err := loadUrlsToQueue(
-		ctx,
-		*cmdArgs.baseURL,
-		q,
-		m.URLs,
-		*cmdArgs.updateDaysPast,
-		loggers,
-		cmdArgs.markedURLs,
-		cmdArgs.updateHrefs,
-	)
+	loadedURLs, err := loadUrlsToQueue(ctx, q, m.URLs, cmdArgs, loggers)
 	if err != nil {
 		exitCode = 1
 		loggers.multiLogger.Println(err)

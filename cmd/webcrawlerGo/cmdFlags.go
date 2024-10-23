@@ -186,6 +186,7 @@ belonging to the baseurl.`,
 		)
 	} else {
 		fmt.Printf("%-16s: %s\n", "User-Agent", *cmdArgs.userAgent)
+		fmt.Printf("%-16s: %t\n", "Updating HREFs", cmdArgs.updateHrefs)
 		fmt.Printf("%-16s: %d day(s)\n", "Update interval", *cmdArgs.updateDaysPast)
 		fmt.Printf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " "))
 		fmt.Printf("%-16s: %s\n", "Ignored Pattern", strings.Join(cmdArgs.ignorePattern, " "))
@@ -193,6 +194,7 @@ belonging to the baseurl.`,
 		fmt.Printf("%-16s: %s\n", "Idle time", cmdArgs.idleTimeout)
 		fmt.Printf("%-16s: %s\n", "Request delay", cmdArgs.reqDelay)
 		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "User-Agent", *cmdArgs.userAgent)))
+		f.Write([]byte(fmt.Sprintf("%-16s: %t\n", "Updating HREFs", cmdArgs.updateHrefs)))
 		f.Write([]byte(fmt.Sprintf("%-16s: %d day(s)\n", "Update interval", *cmdArgs.updateDaysPast)))
 		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Marked URL(s)", strings.Join(cmdArgs.markedURLs, " "))))
 		f.Write([]byte(fmt.Sprintf("%-16s: %s\n", "Ignored Pattern", strings.Join(cmdArgs.ignorePattern, " "))))
