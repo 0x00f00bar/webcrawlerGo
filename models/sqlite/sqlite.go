@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"strings"
 	"time"
 
@@ -63,6 +64,8 @@ func (sq SQLiteDB) InitDatabase(ctx context.Context, db *sql.DB) error {
     FOREIGN KEY (url_id) REFERENCES urls (id) ON DELETE CASCADE
 	);`
 	createPagesURLIDIndex := `CREATE INDEX IF NOT EXISTS idx_page_url_id ON pages(url_id);`
+	checkColIsAlive := `SELECT name FROM pragma_table_info('urls') WHERE name = 'is_alive';`
+	alterURLAddIsAlive := `ALTER TABLE urls ADD COLUMN is_alive BOOLEAN DEFAULT TRUE;`
 
 	queries := []string{createURLTableQuery, createPagesTableQuery, createPagesURLIDIndex}
 
@@ -70,6 +73,20 @@ func (sq SQLiteDB) InitDatabase(ctx context.Context, db *sql.DB) error {
 		timeOutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		_, err := db.ExecContext(timeOutCtx, query)
+		if err != nil {
+			return err
+		}
+	}
+
+	timeOutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	var colName string
+	row := db.QueryRowContext(timeOutCtx, checkColIsAlive)
+	err := row.Scan(&colName)
+	if errors.Is(err, sql.ErrNoRows) {
+		timeOutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		_, err := db.ExecContext(timeOutCtx, alterURLAddIsAlive)
 		if err != nil {
 			return err
 		}
