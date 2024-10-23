@@ -36,6 +36,17 @@ type Crawler struct {
 	*CrawlerConfig
 }
 
+// PrettyLogger interface is used to write scrolling logs to terminal
+type PrettyLogger interface {
+	// Log will send message to PrettyLogger instance
+	// to be written on terminal
+	Log(string)
+
+	// Quit should initiate call to quit PrettyLogger when
+	// the last crawler have exited
+	Quit()
+}
+
 // InvalidURLCache is the cache for invalid URLs
 type InvalidURLCache struct {
 	cache sync.Map
@@ -57,7 +68,7 @@ type CrawlerConfig struct {
 	KnownInvalidURLs *InvalidURLCache   // known map of invalid URLs
 	Ctx              context.Context    // context to quit on SIGINT/SIGTERM
 	robotsTxt        *string            // robots.txt as string (internal)
-	PrettyLogger     io.Writer          // optional logger to write to screen
+	PrettyLogger     PrettyLogger       // optional logger to write to screen
 }
 
 // NewCrawler return pointer to a new Crawler
@@ -167,6 +178,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 				if time.Since(startTime) > c.IdleTimeout {
 					msg := fmt.Sprintf("%s: Queue is empty, quitting.", c.Name)
 					c.Log(msg)
+					c.PrettyLogger.Quit()
 					return
 				}
 				time.Sleep(defaultSleepDuration)
@@ -456,7 +468,7 @@ func (c *Crawler) getURL(url string, client *http.Client) (*http.Response, error
 func (c *Crawler) Log(msg string) {
 	c.Logger.Printf(msg + "\n")
 	if c.PrettyLogger != nil {
-		c.PrettyLogger.Write([]byte(msg))
+		c.PrettyLogger.Log(msg)
 	}
 }
 

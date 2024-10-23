@@ -137,10 +137,11 @@ func main() {
 	} else {
 		retryRequestStats = nil
 	}
-	p := tea.NewProgram(newteaProgModel(int(float32(*cmdArgs.nCrawlers)*float32(1.5)), quit))
+	teaProg := tea.NewProgram(newteaProgModel(int(float32(*cmdArgs.nCrawlers)*float32(1.5)), quit))
 
 	prettyLogger := &crawLogger{
-		teaProgram: p,
+		teaProgram:   teaProg,
+		crawlerCount: *cmdArgs.nCrawlers,
 	}
 
 	crawlerCfg := &webcrawler.CrawlerConfig{
@@ -188,7 +189,7 @@ func main() {
 
 	}
 
-	if _, err := p.Run(); err != nil {
+	if _, err := teaProg.Run(); err != nil {
 		fmt.Println("Error running program:", err)
 	}
 

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -38,20 +39,35 @@ type loggers struct {
 // crawLogger sends the events received to
 // [tea.Program]
 type crawLogger struct {
-	teaProgram *tea.Program
+	teaProgram   *tea.Program
+	mu           sync.Mutex
+	crawlerCount int
 }
 
-// Write implements [io.Writer] for crawLogger type
-func (cl *crawLogger) Write(p []byte) (n int, err error) {
+// Log sends msg to [tea.Program]
+func (cl *crawLogger) Log(msg string) {
 	// cl.mu.Lock()
 	// defer cl.mu.Unlock()
-	msgSlice := strings.Split(string(p), ":")
+	msgSlice := strings.Split(msg, ":")
 	msgSlice[0] = Cyan + msgSlice[0] + Reset
 
-	msg := strings.Join(msgSlice, ":")
+	msg = strings.Join(msgSlice, ":")
 
 	cl.teaProgram.Send(colorAroundTexts(msg, textColorMap))
-	return len(p), nil
+}
+
+// Quit will quit [tea.Program] when last crawler quits
+func (cl *crawLogger) Quit() {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	cl.crawlerCount--
+	// quit when last crawler exits
+	if cl.crawlerCount == 0 {
+		ctrlC := tea.KeyMsg{
+			Type: tea.KeyCtrlC,
+		}
+		cl.teaProgram.Send(ctrlC)
+	}
 }
 
 // initialiseLoggers returns a log file handle f and a MultiWriter logger (os.Stdout & f)
