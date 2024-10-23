@@ -47,6 +47,8 @@ func seperateCmdArgs(args string) []string {
 				argList = append(argList, str)
 			}
 		}
+	} else {
+		argList = append(argList, args)
 	}
 	return argList
 }

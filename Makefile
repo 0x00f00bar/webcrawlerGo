@@ -9,6 +9,10 @@ build:
 	@echo "Executing go build ..."
 	@CGO_ENABLED=1 go build ./cmd/webcrawlerGo/
 
+release:
+	@echo "Executing go build for release ..."
+	@CGO_ENABLED=1 go build -ldflags="-w -s" ./cmd/webcrawlerGo/
+
 migrate-up:
 	@echo "Migrating up ..."
 	@migrate -path "./models/psql/migrations" -database "$(DB_DSN)" up

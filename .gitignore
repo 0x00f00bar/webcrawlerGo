@@ -31,3 +31,4 @@ go.work
 *.db
 *.db-shm
 *.db-wal
+build
