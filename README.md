@@ -11,7 +11,7 @@ Can use PostgreSQL when provided else will open a local sqlite3 database.
 
 ### Usage:
 
-    webcrawler -baseurl <url> [OPTIONS]
+    webcrawlerGo -baseurl <url> [OPTIONS]
 
     -baseurl string
         Absolute base URL to crawl (required).
