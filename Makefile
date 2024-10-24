@@ -11,7 +11,7 @@ build:
 
 release:
 	@echo "Executing go build for release ..."
-	@CGO_ENABLED=1 go build -ldflags="-w -s" ./cmd/webcrawlerGo/
+	@CGO_ENABLED=1 go build -ldflags="-w -s" -o ./build/webcrawlerGo ./cmd/webcrawlerGo/
 
 migrate-up:
 	@echo "Migrating up ..."
