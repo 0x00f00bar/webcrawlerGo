@@ -18,7 +18,7 @@ Can use PostgreSQL when provided else will open a local sqlite3 database.
         E.g. <http/https>://<domain-name>
     -date string
         Cut-off date upto which the latest crawled pages will be saved to disk.
-        Format: YYYY-MM-DD. Applicable only with 'save' flag.
+        Format: YYYY-MM-DD. Applicable only with 'db2disk' flag.
         (default "<todays-date>")
     -days int
         Days past which monitored URLs should be updated (default 1)
@@ -44,7 +44,7 @@ Can use PostgreSQL when provided else will open a local sqlite3 database.
         Number of crawlers to invoke (default 10)
     -path string
         Output path to save the content of crawled web pages.
-        Applicable only with 'save' flag. (default "./OUT/<timestamp>")
+        Applicable only with 'db2disk' flag. (default "./OUT/<timestamp>")
     -req-delay string
         Delay between subsequent requests.
         Min: 1ms (default "50ms")

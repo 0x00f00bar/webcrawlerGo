@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	version = "0.8.9"
+	version = "0.8.10"
 	banner  = `
                 __                             __          ______    
  _      _____  / /_  ______________ __      __/ /__  _____/ ____/___ 
@@ -136,7 +136,9 @@ func main() {
 	} else {
 		retryRequestStats = nil
 	}
-	teaProg := tea.NewProgram(newteaProgModel(int(float32(*cmdArgs.nCrawlers)*float32(1.5)), quit))
+	// display min of 5 log messages
+	numMsgs := max(int(float32(*cmdArgs.nCrawlers)*float32(1.5)), 5)
+	teaProg := tea.NewProgram(newteaProgModel(numMsgs, quit))
 
 	prettyLogger := &crawLogger{
 		teaProgram:   teaProg,

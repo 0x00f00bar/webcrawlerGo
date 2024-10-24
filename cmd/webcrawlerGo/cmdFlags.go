@@ -88,12 +88,12 @@ Crawler will exit after saving to disk.`,
 	savePath := flag.String(
 		"path",
 		defaultSavePath,
-		"Output path to save the content of crawled web pages.\nApplicable only with 'save' flag.",
+		"Output path to save the content of crawled web pages.\nApplicable only with 'db2disk' flag.",
 	)
 	cutOffDate := flag.String(
 		"date",
 		defaultCutOffDate,
-		"Cut-off date upto which the latest crawled pages will be saved to disk.\nFormat: YYYY-MM-DD. Applicable only with 'save' flag.\n",
+		"Cut-off date upto which the latest crawled pages will be saved to disk.\nFormat: YYYY-MM-DD. Applicable only with 'db2disk' flag.\n",
 	)
 	updateHrefs := flag.Bool(
 		"update-hrefs",
@@ -168,6 +168,7 @@ belonging to the baseurl.`,
 	}
 
 	printAndLog(printRed, f, "Running crawler with the following options:")
+	printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Log file", f.Name()))
 	printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Base URL", cmdArgs.baseURL.String()))
 	printAndLog(printCyan, f, fmt.Sprintf("%-16s: %t", "DB-2-Disk", cmdArgs.dbToDisk))
 	if cmdArgs.dbToDisk {
@@ -196,7 +197,7 @@ belonging to the baseurl.`,
 		} else {
 			message += "Crawlers will update URLs only from model which are set for monitoring."
 		}
-		fmt.Println(yellowStyle.Render(message))
+		printYellow(message)
 	}
 
 	return &cmdArgs
