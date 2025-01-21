@@ -32,3 +32,5 @@ go.work
 *.db-shm
 *.db-wal
 builds
+webcrawlerGo
+run.sh
