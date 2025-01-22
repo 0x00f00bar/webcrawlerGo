@@ -379,7 +379,10 @@ func (c *Crawler) fetchEmbeddedURLs(doc *goquery.Document) ([]string, error) {
 
 	doc.Find("a").Each(func(i int, s *goquery.Selection) {
 		if href, found := s.Attr("href"); found {
-			href = strings.TrimSpace(href)
+			href = strings.TrimSuffix(strings.TrimSpace(href), "/")
+			if href == "" {
+				return
+			}
 			// if href is not absolute add BaseURL to href
 			if !internal.IsAbsoluteURL(href) && !internal.BeginsWith(href, invalidHrefPrefixs) {
 				if !strings.HasPrefix(href, "/") {
@@ -387,8 +390,6 @@ func (c *Crawler) fetchEmbeddedURLs(doc *goquery.Document) ([]string, error) {
 				}
 				href = c.BaseURL.String() + href
 			}
-			// convert to lower to make queue case insensitive
-			href = strings.ToLower(href)
 
 			// if href is known to be invalid, ignore
 			if _, knownInvalid := c.KnownInvalidURLs.cache.Load(href); !knownInvalid {
@@ -466,7 +467,7 @@ func (c *Crawler) getURL(url string, client *http.Client) (*http.Response, error
 
 // Log writes the msg to [Crawler.Logger] and [Crawler.PrettyLogger] when present
 func (c *Crawler) Log(msg string) {
-	c.Logger.Printf(msg + "\n")
+	c.Logger.Println(msg)
 	if c.PrettyLogger != nil {
 		c.PrettyLogger.Log(msg)
 	}

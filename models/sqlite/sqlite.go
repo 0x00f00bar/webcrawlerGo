@@ -49,7 +49,7 @@ func makeSQLiteQuery(query string) string {
 func (sq SQLiteDB) InitDatabase(ctx context.Context, db *sql.DB) error {
 	createURLTableQuery := `CREATE TABLE IF NOT EXISTS urls (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	url TEXT UNIQUE NOT NULL,
+	url TEXT UNIQUE COLLATE BINARY NOT NULL,
 	first_encountered DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	last_checked DATETIME DEFAULT NULL,
 	last_saved DATETIME DEFAULT NULL,
