@@ -5,7 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"time"
+
+	"github.com/0x00f00bar/webcrawlerGo/internal"
 )
 
 var URLColumns = []string{
@@ -14,11 +17,11 @@ var URLColumns = []string{
 }
 
 type URLFilter struct {
-	URL                string
-	IsMonitored        bool
-	IsMonitoredPresent bool
-	IsAlive            bool
-	IsAlivePresent     bool
+	URL                string `json:"url"`
+	IsMonitored        bool   `json:"is_monitored"`
+	IsMonitoredPresent bool   `json:"-"`
+	IsAlive            bool   `json:"is_alive"`
+	IsAlivePresent     bool   `json:"-"`
 }
 
 // Queries related to urls table
@@ -53,6 +56,12 @@ type URL struct {
 	IsMonitored      bool
 	IsAlive          bool
 	Version          uint
+}
+
+func ValidateURL(v *internal.Validator, u *URL) {
+	v.Check(u.URL != "", "url", "must be provided")
+	_, err := url.Parse(u.URL)
+	v.Check(err != nil, "url", "invalid url")
 }
 
 // NewURL returns new URL type with FirstEncountered set to time.Now
@@ -133,7 +142,6 @@ func URLGetByURL(urlStr string, query string, db *sql.DB) (*URL, error) {
 
 // URLInsert writes a url to urls table
 func URLInsert(m *URL, query string, db *sql.DB) error {
-
 	args := []interface{}{m.URL, m.LastChecked, m.LastSaved, m.IsMonitored}
 
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultDBTimeout)
@@ -146,7 +154,6 @@ func URLInsert(m *URL, query string, db *sql.DB) error {
 // Optimistic locking enabled: if version change detected
 // return ErrEditConflict
 func URLUpdate(m *URL, query string, db *sql.DB) error {
-
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultDBTimeout)
 	defer cancel()
 
@@ -191,8 +198,13 @@ func URLDelete(id int, query string, db *sql.DB) error {
 }
 
 // URLGetAll fetches all rows from urls table as per filters
-func URLGetAll(uf URLFilter, cf CommonFilters, query string, db *sql.DB, queryTransformFn func(string) string) ([]*URL, error) {
-
+func URLGetAll(
+	uf URLFilter,
+	cf CommonFilters,
+	query string,
+	db *sql.DB,
+	queryTransformFn func(string) string,
+) ([]*URL, error) {
 	url := fmt.Sprintf("%%%s%%", uf.URL)
 	args := []any{url}
 
