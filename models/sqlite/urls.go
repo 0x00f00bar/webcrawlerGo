@@ -54,15 +54,19 @@ func (u urlDB) Delete(id int) error {
 }
 
 // GetAll fetches all rows from urls table in orderBy order
-func (u urlDB) GetAll(orderBy string) ([]*models.URL, error) {
+func (u urlDB) GetAll(uf models.URLFilter, cf models.CommonFilters) ([]*models.URL, error) {
 	query := makeSQLiteQuery(models.QueryGetAllURL)
 
-	return models.URLGetAll(orderBy, query, u.DB.readers)
+	return models.URLGetAll(uf, cf, query, u.DB.readers)
 }
 
 // GetAll fetches all rows where is_monitored is true from urls table in orderBy order
-func (u urlDB) GetAllMonitored(orderBy string) ([]*models.URL, error) {
+func (u urlDB) GetAllMonitored(cf models.CommonFilters) ([]*models.URL, error) {
 	query := makeSQLiteQuery(models.QueryGetAllMonitoredURL)
+	uf := models.URLFilter{
+		IsMonitored:        true,
+		IsMonitoredPresent: true,
+	}
 
-	return models.URLGetAll(orderBy, query, u.DB.readers)
+	return models.URLGetAll(uf, cf, query, u.DB.readers)
 }

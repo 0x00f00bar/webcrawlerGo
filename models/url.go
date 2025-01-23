@@ -13,6 +13,14 @@ var URLColumns = []string{
 	"last_saved", "is_monitored", "is_alive", "version",
 }
 
+type URLFilter struct {
+	URL                string
+	IsMonitored        bool
+	IsMonitoredPresent bool
+	IsAlive            bool
+	IsAlivePresent     bool
+}
+
 // Queries related to urls table
 const (
 	QuerySelectURL   = "SELECT id, url, first_encountered, last_checked, last_saved, is_monitored, is_alive, version FROM urls "
@@ -28,7 +36,7 @@ const (
 	WHERE id = __ARG__ AND version = __ARG__
 	RETURNING version`
 	QueryDeleteURL          = `DELETE from urls WHERE id = __ARG__`
-	QueryGetAllURL          = QuerySelectURL + "ORDER BY __ARG__"
+	QueryGetAllURL          = QuerySelectURL + "WHERE url LIKE __ARG__ "
 	QueryGetAllMonitoredURL = QuerySelectURL + `
 	WHERE is_monitored = true AND is_alive = true
 	ORDER BY __ARG__`
@@ -182,16 +190,34 @@ func URLDelete(id int, query string, db *sql.DB) error {
 	return nil
 }
 
-// URLGetAll fetches all rows from urls table in orderBy order
-func URLGetAll(orderBy string, query string, db *sql.DB) ([]*URL, error) {
-	if !ValidOrderBy(orderBy, URLColumns) {
-		return nil, fmt.Errorf("%w : %s", ErrInvalidOrderBy, orderBy)
+// URLGetAll fetches all rows from urls table as per filters
+func URLGetAll(uf URLFilter, cf CommonFilters, query string, db *sql.DB) ([]*URL, error) {
+
+	url := fmt.Sprintf("%%%s%%", uf.URL)
+	args := []any{url}
+
+	if uf.IsAlivePresent {
+		query += " AND is_alive = __ARG__"
+		args = append(args, uf.IsAlive)
 	}
+	if uf.IsMonitoredPresent {
+		query += " AND is_monitored = __ARG__"
+		args = append(args, uf.IsMonitored)
+	}
+
+	orderBy, err := GetOrderByQuery(&cf)
+	if err != nil {
+		return nil, err
+	}
+	query += orderBy
+
+	query += " LIMIT __ARG__ OFFSET __ARG__"
+	args = append(args, cf.Limit(), cf.Offset())
 
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultDBTimeout)
 	defer cancel()
 
-	rows, err := db.QueryContext(ctx, query, orderBy)
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
