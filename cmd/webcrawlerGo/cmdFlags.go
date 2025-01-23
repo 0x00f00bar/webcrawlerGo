@@ -26,6 +26,7 @@ type cmdFlags struct {
 	retryTime      *int          // -retry
 	userAgent      *string       // -ua
 	updateHrefs    bool          // -update-hrefs
+	server         bool          // -server
 }
 
 // parseCmdFlags will parse cmd flags and validate them.
@@ -101,12 +102,24 @@ Crawler will exit after saving to disk.`,
 		`Use this flag to update embedded HREFs in all saved and alive URLs
 belonging to the baseurl.`,
 	)
+	server := flag.Bool(
+		"server",
+		false,
+		`Open a local server on port 8100 to manage db. If provided, all other
+options will be ignored.`,
+	)
 
 	flag.Parse()
 
 	if *printVersion {
 		fmt.Printf("Version %s\n", version)
 		os.Exit(0)
+	}
+
+	if *server {
+		return &cmdFlags{
+			server: *server,
+		}
 	}
 
 	// trim whitespace and drop trailing '/'

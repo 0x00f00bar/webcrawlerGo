@@ -29,12 +29,13 @@ var (
 | |/ |/ /  __/ /_/ / /__/ /  / /_/ /| |/ |/ / /  __/ /  / /_/ / /_/ /
 |__/|__/\___/_.___/\___/_/   \__,_/ |__/|__/_/\___/_/   \____/\____/ 
                                                                      `
+
+	exitCode int
 )
 
 func main() {
 	printBanner()
 
-	var exitCode int
 	defer func() {
 		os.Exit(exitCode)
 	}()
@@ -96,12 +97,25 @@ func main() {
 
 	// init queue & push base url
 	q := queue.NewQueue()
-	q.Insert(cmdArgs.baseURL.String())
 
 	// chanel to get os signals
 	quit := make(chan os.Signal, 1)
 
 	go listenForSignals(cancel, quit, q, loggers)
+
+	if cmdArgs.server {
+		app := webapp{
+			Models: &m,
+			Logger: loggers.fileLogger,
+		}
+
+		err = app.serve(ctx, quit)
+		if err != nil {
+			exitCode = 3
+			app.Logger.Println(err)
+		}
+		return
+	}
 
 	if cmdArgs.dbToDisk {
 		err = saveDbContentToDisk(ctx, m.Pages, cmdArgs, cmdArgs.markedURLs, loggers)
@@ -114,8 +128,25 @@ func main() {
 		return
 	}
 
+	err = beginCrawl(ctx, cmdArgs, quit, q, &m, loggers)
+	if err != nil {
+		loggers.multiLogger.Println(err)
+		return
+	}
+
+}
+
+func beginCrawl(
+	ctx context.Context,
+	cmdArgs *cmdFlags,
+	quit chan os.Signal,
+	q *queue.UniqueQueue,
+	m *models.Models,
+	loggers *loggers,
+) error {
 	// insert base URL to URL model if not present
 	// when present will throw unique constraint error, which can be ignored
+	q.Insert(cmdArgs.baseURL.String())
 	var t time.Time
 	u := models.NewURL(cmdArgs.baseURL.String(), t, t, false)
 	_ = m.URLs.Insert(u)
@@ -124,8 +155,8 @@ func main() {
 	loadedURLs, err := loadUrlsToQueue(ctx, q, m.URLs, cmdArgs, loggers)
 	if err != nil {
 		exitCode = 1
-		loggers.multiLogger.Println(err)
-		return
+		// loggers.multiLogger.Println(err)
+		return err
 	}
 	loggers.multiLogger.Printf("Loaded %d URLs from model\n", loadedURLs)
 
@@ -147,7 +178,7 @@ func main() {
 
 	crawlerCfg := &webcrawler.CrawlerConfig{
 		Queue:          q,
-		Models:         &m,
+		Models:         m,
 		BaseURL:        cmdArgs.baseURL,
 		UserAgent:      *cmdArgs.userAgent,
 		MarkedURLs:     cmdArgs.markedURLs,
@@ -164,9 +195,9 @@ func main() {
 	// init n crawlers
 	crawlerArmy, err := webcrawler.NNewCrawlers(*cmdArgs.nCrawlers, "crawler", crawlerCfg)
 	if err != nil {
-		exitCode = 1
-		loggers.multiLogger.Println(err)
-		return
+		exitCode = 2
+		// loggers.multiLogger.Println(err)
+		return err
 	}
 
 	modifiedTransport := http.DefaultTransport.(*http.Transport).Clone()
@@ -198,4 +229,5 @@ func main() {
 	wg.Wait()
 	loggers.fileLogger.Println("Done")
 	fmt.Println(redStyle.Margin(0, 0, 1, 2).Render("Done"))
+	return nil
 }
