@@ -23,3 +23,12 @@ func (v *Validator) Check(ok bool, key, message string) {
 		v.AddError(key, message)
 	}
 }
+
+func PermittedValue[T comparable](value T, permitterValues ...T) bool {
+	for i := range permitterValues {
+		if value == permitterValues[i] {
+			return true
+		}
+	}
+	return false
+}
