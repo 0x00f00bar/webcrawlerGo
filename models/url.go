@@ -191,7 +191,7 @@ func URLDelete(id int, query string, db *sql.DB) error {
 }
 
 // URLGetAll fetches all rows from urls table as per filters
-func URLGetAll(uf URLFilter, cf CommonFilters, query string, db *sql.DB) ([]*URL, error) {
+func URLGetAll(uf URLFilter, cf CommonFilters, query string, db *sql.DB, queryTransformFn func(string) string) ([]*URL, error) {
 
 	url := fmt.Sprintf("%%%s%%", uf.URL)
 	args := []any{url}
@@ -213,6 +213,8 @@ func URLGetAll(uf URLFilter, cf CommonFilters, query string, db *sql.DB) ([]*URL
 
 	query += " LIMIT __ARG__ OFFSET __ARG__"
 	args = append(args, cf.Limit(), cf.Offset())
+
+	query = queryTransformFn(query)
 
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultDBTimeout)
 	defer cancel()
