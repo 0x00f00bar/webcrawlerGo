@@ -64,3 +64,16 @@ func CreateDirIfNotExists(path string) {
 		}
 	}
 }
+
+// PrefixString returns []string with every element of
+// s prefixed with prefix
+func PrefixString(s []string, prefix string) []string {
+	if len(s) < 1 {
+		return s
+	}
+	var prefixed []string
+	for _, item := range s {
+		prefixed = append(prefixed, prefix+item)
+	}
+	return prefixed
+}
