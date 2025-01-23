@@ -118,6 +118,7 @@ options will be ignored.`,
 
 	if *server {
 		return &cmdFlags{
+			dbDSN:     dbDSN,
 			runserver: *server,
 		}
 	}

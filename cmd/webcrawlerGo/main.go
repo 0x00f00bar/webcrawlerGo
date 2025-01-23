@@ -67,7 +67,7 @@ func main() {
 	// get postgres models and initialise database tables
 	if driverName == psql.DriverNamePgSQL {
 		psqlModels := psql.NewPsqlDB(dbConns.writer)
-		err := psqlModels.InitDatabase(ctx, dbConns.writer)
+		err = psqlModels.InitDatabase(ctx, dbConns.writer)
 		if err != nil {
 			exitCode = 1
 			loggers.multiLogger.Println(err)
@@ -79,7 +79,7 @@ func main() {
 	// get sqlite3 models and initialise database tables
 	if driverName == sqlite.DriverNameSQLite {
 		sqliteModels := sqlite.NewSQLiteDB(dbConns.reader, dbConns.writer)
-		err := sqliteModels.InitDatabase(ctx, dbConns.writer)
+		err = sqliteModels.InitDatabase(ctx, dbConns.writer)
 		if err != nil {
 			exitCode = 1
 			loggers.multiLogger.Println(err)
@@ -100,7 +100,7 @@ func main() {
 	if cmdArgs.runserver {
 		app := webapp{
 			Models: &m,
-			Logger: loggers.fileLogger,
+			Logger: loggers.multiLogger,
 		}
 
 		err = app.serve(ctx, quit)
