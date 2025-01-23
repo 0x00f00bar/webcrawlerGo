@@ -26,7 +26,7 @@ type cmdFlags struct {
 	retryTime      *int          // -retry
 	userAgent      *string       // -ua
 	updateHrefs    bool          // -update-hrefs
-	server         bool          // -server
+	runserver      bool          // -server
 }
 
 // parseCmdFlags will parse cmd flags and validate them.
@@ -118,7 +118,7 @@ options will be ignored.`,
 
 	if *server {
 		return &cmdFlags{
-			server: *server,
+			runserver: *server,
 		}
 	}
 
