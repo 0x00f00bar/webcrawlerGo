@@ -59,7 +59,12 @@ func (pq PsqlDB) InitDatabase(ctx context.Context, db *sql.DB) error {
 	alterURLAddIsAlive := `ALTER TABLE urls
 ADD COLUMN IF NOT EXISTS is_alive BOOLEAN DEFAULT TRUE;`
 
-	queries := []string{createURLTableQuery, createPagesTableQuery, createPagesURLIDIndex, alterURLAddIsAlive}
+	queries := []string{
+		createURLTableQuery,
+		createPagesTableQuery,
+		createPagesURLIDIndex,
+		alterURLAddIsAlive,
+	}
 
 	for _, query := range queries {
 		timeOutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)

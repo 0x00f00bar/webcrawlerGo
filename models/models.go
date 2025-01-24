@@ -39,7 +39,7 @@ type URLModel interface {
 
 type PageModel interface {
 	GetById(id int) (*Page, error)
-	GetAllByURL(urlId uint, orderBy string) ([]*Page, error)
+	GetAllByURL(urlId uint, cf CommonFilters) ([]*Page, error)
 	GetLatestPageCount(
 		ctx context.Context,
 		baseURL *url.URL,
