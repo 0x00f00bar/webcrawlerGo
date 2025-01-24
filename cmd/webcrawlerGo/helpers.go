@@ -79,5 +79,5 @@ func printBanner() {
 	fmt.Println(cyanStyle.Render("Who are we?      : ") + redStyle.Render("web crawlers!"))
 	fmt.Println(cyanStyle.Render("What do we want? : ") + redStyle.Render("To crawl the web!"))
 	fmt.Println(redStyle.Margin(0, 0, 0, 2).Render(banner))
-	fmt.Println(cyanStyle.Render("v" + version))
+	fmt.Println(grayStyle.Render("v" + version))
 }

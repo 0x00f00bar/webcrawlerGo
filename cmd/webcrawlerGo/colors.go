@@ -13,6 +13,7 @@ var (
 	greenStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("28"))
 	cyanStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("43"))
 	yellowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
+	grayStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
 )
 
 func printRed(msg string) {
