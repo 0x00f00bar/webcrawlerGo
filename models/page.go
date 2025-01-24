@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"net/url"
 	"time"
 )
@@ -15,7 +14,7 @@ var PageColumns = []string{"id", "url_id", "added_at", "content"}
 const (
 	QuerySelectPage          = "SELECT id, url_id, added_at, content FROM pages"
 	QueryGetPageById         = QuerySelectPage + " WHERE id = __ARG__"
-	QueryGetAllPageByURL     = QuerySelectPage + " WHERE url_id = __ARG__ ORDER BY __ARG__"
+	QueryGetAllPageByURL     = "SELECT id, url_id, added_at FROM pages WHERE url_id = __ARG__"
 	QueryInsertPage          = `INSERT INTO pages (url_id, content) VALUES (__ARG__, __ARG__) RETURNING id, added_at`
 	QueryDeletePage          = `DELETE from pages WHERE id = __ARG__`
 	QueryGetLatestPagesCount = `WITH LatestPages AS (
@@ -48,10 +47,10 @@ const (
 // Page type holds the information of URL content
 // saved in model
 type Page struct {
-	ID      uint
-	URLID   uint
-	AddedAt time.Time
-	Content string
+	ID      uint      `json:"id"`
+	URLID   uint      `json:"url_id"`
+	AddedAt time.Time `json:"added_at"`
+	Content string    `json:"content,omitempty"`
 }
 
 // PageContent type contains feilds required for
@@ -101,21 +100,36 @@ func PageGetById(id int, query string, db *sql.DB) (*Page, error) {
 	return &page, nil
 }
 
-// PageGetAllByURL fetches a row from pages table by urlId
-// and order by orderBy
-func PageGetAllByURL(urlID uint, orderBy string, query string, db *sql.DB) ([]*Page, error) {
+// PageGetAllByURL fetches all rows from pages table by urlId
+// and order by orderBy; does not include page content
+func PageGetAllByURL(
+	urlID uint,
+	cf CommonFilters,
+	query string,
+	db *sql.DB,
+	queryTransformFn func(string) string,
+) ([]*Page, error) {
 	if urlID < 1 {
 		return nil, ErrRecordNotFound
 	}
 
-	if !ValidOrderBy(orderBy, PageColumns) {
-		return nil, fmt.Errorf("%w : %s", ErrInvalidOrderBy, orderBy)
+	args := []any{urlID}
+
+	orderBy, err := GetOrderByQuery(&cf)
+	if err != nil {
+		return nil, err
 	}
+	query += orderBy
+
+	query += " LIMIT __ARG__ OFFSET __ARG__"
+	args = append(args, cf.Limit(), cf.Offset())
+
+	query = queryTransformFn(query)
 
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultDBTimeout)
 	defer cancel()
 
-	rows, err := db.QueryContext(ctx, query, urlID, orderBy)
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +144,6 @@ func PageGetAllByURL(urlID uint, orderBy string, query string, db *sql.DB) ([]*P
 			&page.ID,
 			&page.URLID,
 			&page.AddedAt,
-			&page.Content,
 		)
 		if err != nil {
 			return nil, err

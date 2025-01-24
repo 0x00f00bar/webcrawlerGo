@@ -28,8 +28,8 @@ type Models struct {
 }
 
 type URLModel interface {
-	GetAll(orderBy string) ([]*URL, error)
-	GetAllMonitored(orderBy string) ([]*URL, error)
+	GetAll(URLFilter, CommonFilters) ([]*URL, error)
+	GetAllMonitored(CommonFilters) ([]*URL, error)
 	GetById(id int) (*URL, error)
 	GetByURL(url string) (*URL, error)
 	Insert(*URL) error
@@ -39,7 +39,7 @@ type URLModel interface {
 
 type PageModel interface {
 	GetById(id int) (*Page, error)
-	GetAllByURL(urlId uint, orderBy string) ([]*Page, error)
+	GetAllByURL(urlId uint, cf CommonFilters) ([]*Page, error)
 	GetLatestPageCount(
 		ctx context.Context,
 		baseURL *url.URL,

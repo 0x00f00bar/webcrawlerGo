@@ -2,17 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"net/http"
 	"os"
-	"sync"
-	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 
-	webcrawler "github.com/0x00f00bar/webcrawlerGo"
 	"github.com/0x00f00bar/webcrawlerGo/internal"
 	"github.com/0x00f00bar/webcrawlerGo/models"
 	"github.com/0x00f00bar/webcrawlerGo/models/psql"
@@ -29,12 +23,13 @@ var (
 | |/ |/ /  __/ /_/ / /__/ /  / /_/ /| |/ |/ / /  __/ /  / /_/ / /_/ /
 |__/|__/\___/_.___/\___/_/   \__,_/ |__/|__/_/\___/_/   \____/\____/ 
                                                                      `
+
+	exitCode int
 )
 
 func main() {
 	printBanner()
 
-	var exitCode int
 	defer func() {
 		os.Exit(exitCode)
 	}()
@@ -72,7 +67,7 @@ func main() {
 	// get postgres models and initialise database tables
 	if driverName == psql.DriverNamePgSQL {
 		psqlModels := psql.NewPsqlDB(dbConns.writer)
-		err := psqlModels.InitDatabase(ctx, dbConns.writer)
+		err = psqlModels.InitDatabase(ctx, dbConns.writer)
 		if err != nil {
 			exitCode = 1
 			loggers.multiLogger.Println(err)
@@ -84,7 +79,7 @@ func main() {
 	// get sqlite3 models and initialise database tables
 	if driverName == sqlite.DriverNameSQLite {
 		sqliteModels := sqlite.NewSQLiteDB(dbConns.reader, dbConns.writer)
-		err := sqliteModels.InitDatabase(ctx, dbConns.writer)
+		err = sqliteModels.InitDatabase(ctx, dbConns.writer)
 		if err != nil {
 			exitCode = 1
 			loggers.multiLogger.Println(err)
@@ -96,12 +91,25 @@ func main() {
 
 	// init queue & push base url
 	q := queue.NewQueue()
-	q.Insert(cmdArgs.baseURL.String())
 
 	// chanel to get os signals
 	quit := make(chan os.Signal, 1)
 
 	go listenForSignals(cancel, quit, q, loggers)
+
+	if cmdArgs.runserver {
+		app := webapp{
+			Models: &m,
+			Logger: loggers.multiLogger,
+		}
+
+		err = app.serve(ctx, quit)
+		if err != nil {
+			exitCode = 3
+			app.Logger.Println(err)
+		}
+		return
+	}
 
 	if cmdArgs.dbToDisk {
 		err = saveDbContentToDisk(ctx, m.Pages, cmdArgs, cmdArgs.markedURLs, loggers)
@@ -114,88 +122,9 @@ func main() {
 		return
 	}
 
-	// insert base URL to URL model if not present
-	// when present will throw unique constraint error, which can be ignored
-	var t time.Time
-	u := models.NewURL(cmdArgs.baseURL.String(), t, t, false)
-	_ = m.URLs.Insert(u)
-
-	// get all urls from db, put all in queue's map
-	loadedURLs, err := loadUrlsToQueue(ctx, q, m.URLs, cmdArgs, loggers)
+	err = beginCrawl(ctx, cmdArgs, quit, q, &m, loggers)
 	if err != nil {
-		exitCode = 1
 		loggers.multiLogger.Println(err)
 		return
 	}
-	loggers.multiLogger.Printf("Loaded %d URLs from model\n", loadedURLs)
-
-	// if retry == 0, don't init request stats map
-	var retryRequestStats map[string]int
-	if *cmdArgs.retryTime > 0 {
-		retryRequestStats = map[string]int{}
-	} else {
-		retryRequestStats = nil
-	}
-	// display min of 5 log messages
-	numMsgs := max(int(float32(*cmdArgs.nCrawlers)*float32(1.5)), 5)
-	teaProg := tea.NewProgram(newteaProgModel(numMsgs, quit))
-
-	prettyLogger := &crawLogger{
-		teaProgram:   teaProg,
-		crawlerCount: *cmdArgs.nCrawlers,
-	}
-
-	crawlerCfg := &webcrawler.CrawlerConfig{
-		Queue:          q,
-		Models:         &m,
-		BaseURL:        cmdArgs.baseURL,
-		UserAgent:      *cmdArgs.userAgent,
-		MarkedURLs:     cmdArgs.markedURLs,
-		IgnorePatterns: cmdArgs.ignorePattern,
-		RequestDelay:   cmdArgs.reqDelay,
-		IdleTimeout:    cmdArgs.idleTimeout,
-		Logger:         loggers.fileLogger,
-		RetryTimes:     *cmdArgs.retryTime,
-		FailedRequests: retryRequestStats,
-		Ctx:            ctx,
-		PrettyLogger:   prettyLogger,
-	}
-
-	// init n crawlers
-	crawlerArmy, err := webcrawler.NNewCrawlers(*cmdArgs.nCrawlers, "crawler", crawlerCfg)
-	if err != nil {
-		exitCode = 1
-		loggers.multiLogger.Println(err)
-		return
-	}
-
-	modifiedTransport := http.DefaultTransport.(*http.Transport).Clone()
-	modifiedTransport.MaxIdleConnsPerHost = 50
-
-	httpClient := &http.Client{
-		Timeout:   defaultTimeout,
-		Transport: modifiedTransport,
-	}
-
-	// init waitgroup
-	var wg sync.WaitGroup
-
-	for _, crawler := range crawlerArmy {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-			crawler.Crawl(httpClient)
-		}()
-
-	}
-
-	if _, err := teaProg.Run(); err != nil {
-		fmt.Println("Error running program:", err)
-	}
-
-	// wait for crawlers
-	wg.Wait()
-	loggers.fileLogger.Println("Done")
-	fmt.Println(redStyle.Margin(0, 0, 1, 2).Render("Done"))
 }

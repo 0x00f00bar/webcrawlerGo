@@ -5,12 +5,23 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"time"
+
+	"github.com/0x00f00bar/webcrawlerGo/internal"
 )
 
 var URLColumns = []string{
 	"id", "url", "first_encountered", "last_checked",
 	"last_saved", "is_monitored", "is_alive", "version",
+}
+
+type URLFilter struct {
+	URL                string `json:"url"`
+	IsMonitored        bool   `json:"is_monitored"`
+	IsMonitoredPresent bool   `json:"-"`
+	IsAlive            bool   `json:"is_alive"`
+	IsAlivePresent     bool   `json:"-"`
 }
 
 // Queries related to urls table
@@ -28,7 +39,7 @@ const (
 	WHERE id = __ARG__ AND version = __ARG__
 	RETURNING version`
 	QueryDeleteURL          = `DELETE from urls WHERE id = __ARG__`
-	QueryGetAllURL          = QuerySelectURL + "ORDER BY __ARG__"
+	QueryGetAllURL          = QuerySelectURL + "WHERE url LIKE __ARG__ "
 	QueryGetAllMonitoredURL = QuerySelectURL + `
 	WHERE is_monitored = true AND is_alive = true
 	ORDER BY __ARG__`
@@ -37,14 +48,20 @@ const (
 // URL type holds the information of URL
 // saved in model
 type URL struct {
-	ID               uint
-	URL              string
-	FirstEncountered time.Time
-	LastChecked      time.Time
-	LastSaved        time.Time
-	IsMonitored      bool
-	IsAlive          bool
-	Version          uint
+	ID               uint      `json:"id"`
+	URL              string    `json:"url"`
+	FirstEncountered time.Time `json:"first_seen"`
+	LastChecked      time.Time `json:"last_checked"`
+	LastSaved        time.Time `json:"last_saved"`
+	IsMonitored      bool      `json:"is_monitored"`
+	IsAlive          bool      `json:"is_alive"`
+	Version          uint      `json:"version"`
+}
+
+func ValidateURL(v *internal.Validator, u *URL) {
+	v.Check(u.URL != "", "url", "must be provided")
+	_, err := url.Parse(u.URL)
+	v.Check(err == nil, "url", "invalid url")
 }
 
 // NewURL returns new URL type with FirstEncountered set to time.Now
@@ -125,7 +142,6 @@ func URLGetByURL(urlStr string, query string, db *sql.DB) (*URL, error) {
 
 // URLInsert writes a url to urls table
 func URLInsert(m *URL, query string, db *sql.DB) error {
-
 	args := []interface{}{m.URL, m.LastChecked, m.LastSaved, m.IsMonitored}
 
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultDBTimeout)
@@ -138,7 +154,6 @@ func URLInsert(m *URL, query string, db *sql.DB) error {
 // Optimistic locking enabled: if version change detected
 // return ErrEditConflict
 func URLUpdate(m *URL, query string, db *sql.DB) error {
-
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultDBTimeout)
 	defer cancel()
 
@@ -182,16 +197,41 @@ func URLDelete(id int, query string, db *sql.DB) error {
 	return nil
 }
 
-// URLGetAll fetches all rows from urls table in orderBy order
-func URLGetAll(orderBy string, query string, db *sql.DB) ([]*URL, error) {
-	if !ValidOrderBy(orderBy, URLColumns) {
-		return nil, fmt.Errorf("%w : %s", ErrInvalidOrderBy, orderBy)
+// URLGetAll fetches all rows from urls table as per filters
+func URLGetAll(
+	uf URLFilter,
+	cf CommonFilters,
+	query string,
+	db *sql.DB,
+	queryTransformFn func(string) string,
+) ([]*URL, error) {
+	url := fmt.Sprintf("%%%s%%", uf.URL)
+	args := []any{url}
+
+	if uf.IsAlivePresent {
+		query += " AND is_alive = __ARG__"
+		args = append(args, uf.IsAlive)
 	}
+	if uf.IsMonitoredPresent {
+		query += " AND is_monitored = __ARG__"
+		args = append(args, uf.IsMonitored)
+	}
+
+	orderBy, err := GetOrderByQuery(&cf)
+	if err != nil {
+		return nil, err
+	}
+	query += orderBy
+
+	query += " LIMIT __ARG__ OFFSET __ARG__"
+	args = append(args, cf.Limit(), cf.Offset())
+
+	query = queryTransformFn(query)
 
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultDBTimeout)
 	defer cancel()
 
-	rows, err := db.QueryContext(ctx, query, orderBy)
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

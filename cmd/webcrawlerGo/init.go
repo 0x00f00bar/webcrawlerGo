@@ -25,7 +25,14 @@ func loadUrlsToQueue(
 	cmdArgs *cmdFlags,
 	loggers *loggers,
 ) (int, error) {
-	dburls, err := m.GetAll("is_monitored")
+	uf := models.URLFilter{}
+	cf := models.CommonFilters{
+		Page:         1,
+		PageSize:     100000,
+		Sort:         "is_monitored",
+		SortSafeList: models.URLColumns,
+	}
+	dburls, err := m.GetAll(uf, cf)
 	if err != nil {
 		return 0, err
 	}

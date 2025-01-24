@@ -30,10 +30,8 @@ func (p pageDB) GetById(id int) (*models.Page, error) {
 
 // GetAllByURL fetches a row from pages table by urlId
 // and order by orderBy
-func (p pageDB) GetAllByURL(urlID uint, orderBy string) ([]*models.Page, error) {
-	query := makePgSQLQuery(models.QueryGetAllPageByURL)
-
-	return models.PageGetAllByURL(urlID, orderBy, query, p.DB)
+func (p pageDB) GetAllByURL(urlID uint, cf models.CommonFilters) ([]*models.Page, error) {
+	return models.PageGetAllByURL(urlID, cf, models.QueryGetAllPageByURL, p.DB, makePgSQLQuery)
 }
 
 // Insert writes a page to pages table

@@ -29,10 +29,14 @@ func (p pageDB) GetById(id int) (*models.Page, error) {
 
 // GetAllByURL fetches a row from pages table by urlId
 // and order by orderBy
-func (p pageDB) GetAllByURL(urlID uint, orderBy string) ([]*models.Page, error) {
-	query := makeSQLiteQuery(models.QueryGetAllPageByURL)
-
-	return models.PageGetAllByURL(urlID, orderBy, query, p.DB.readers)
+func (p pageDB) GetAllByURL(urlID uint, cf models.CommonFilters) ([]*models.Page, error) {
+	return models.PageGetAllByURL(
+		urlID,
+		cf,
+		models.QueryGetAllPageByURL,
+		p.DB.readers,
+		makeSQLiteQuery,
+	)
 }
 
 // Insert writes a page to pages table

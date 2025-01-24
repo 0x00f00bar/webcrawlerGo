@@ -33,5 +33,5 @@ go.work
 *.db-wal
 *.db.bak
 builds
-webcrawlerGo
 run.sh
+test
