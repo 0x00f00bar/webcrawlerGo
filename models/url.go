@@ -61,7 +61,7 @@ type URL struct {
 func ValidateURL(v *internal.Validator, u *URL) {
 	v.Check(u.URL != "", "url", "must be provided")
 	_, err := url.Parse(u.URL)
-	v.Check(err != nil, "url", "invalid url")
+	v.Check(err == nil, "url", "invalid url")
 }
 
 // NewURL returns new URL type with FirstEncountered set to time.Now
