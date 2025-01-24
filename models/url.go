@@ -48,14 +48,14 @@ const (
 // URL type holds the information of URL
 // saved in model
 type URL struct {
-	ID               uint
-	URL              string
-	FirstEncountered time.Time
-	LastChecked      time.Time
-	LastSaved        time.Time
-	IsMonitored      bool
-	IsAlive          bool
-	Version          uint
+	ID               uint      `json:"id"`
+	URL              string    `json:"url"`
+	FirstEncountered time.Time `json:"first_seen"`
+	LastChecked      time.Time `json:"last_checked"`
+	LastSaved        time.Time `json:"last_saved"`
+	IsMonitored      bool      `json:"is_monitored"`
+	IsAlive          bool      `json:"is_alive"`
+	Version          uint      `json:"version"`
 }
 
 func ValidateURL(v *internal.Validator, u *URL) {
