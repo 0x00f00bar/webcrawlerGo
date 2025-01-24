@@ -40,10 +40,10 @@ func (app *webapp) serve(ctx context.Context, quitChan chan os.Signal) error {
 
 	app.Logger.Printf("starting server on %s", srv.Addr)
 
-	go func() {
-		time.Sleep(time.Second)
-		app.openBrowser(fmt.Sprintf("http://localhost:%d", serverPort))
-	}()
+	// go func() {
+	// 	time.Sleep(time.Second)
+	// 	app.openBrowser(fmt.Sprintf("http://localhost:%d", serverPort))
+	// }()
 
 	err := srv.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
@@ -68,6 +68,9 @@ func (app *webapp) routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/v1/url/:id", app.getURLByIdHandler)
 	router.HandlerFunc(http.MethodPost, "/v1/url", app.createURLHandler)
 	router.HandlerFunc(http.MethodPatch, "/v1/url/:id", app.updateURLHandler)
+
+	router.HandlerFunc(http.MethodGet, "/v1/page", app.listPageHandler)
+	router.HandlerFunc(http.MethodGet, "/v1/page/:id", app.getPageByIdHandler)
 
 	return router
 }
