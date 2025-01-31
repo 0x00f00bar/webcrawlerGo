@@ -35,3 +35,4 @@ go.work
 builds
 run.sh
 test
+*.postman_collection.json
