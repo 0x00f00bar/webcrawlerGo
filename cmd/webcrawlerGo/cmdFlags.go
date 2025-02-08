@@ -107,7 +107,7 @@ belonging to the baseurl.`,
 		"server",
 		false,
 		`Open a local server on port 8100 to manage db. If provided, all other
-options will be ignored.`,
+options will be ignored (except db-dsn and verbose).`,
 	)
 	verbose := flag.Bool("verbose", false, "Prints additional info while logging")
 
@@ -119,6 +119,15 @@ options will be ignored.`,
 	}
 
 	if *server {
+		// validate db-dsn
+		v.Check(
+			strings.Contains(*dbDSN, "postgres") || *dbDSN == "",
+			"db-dsn",
+			"only postgres dsn are supported, when empty will use sqlite3 driver",
+		)
+		if !v.Valid() {
+			printInvalidFlagErrors(v)
+		}
 		return &cmdFlags{
 			dbDSN:     dbDSN,
 			runserver: *server,
@@ -176,16 +185,20 @@ options will be ignored.`,
 
 	validateFlags(v, &cmdArgs)
 	if !v.Valid() {
-		fmt.Println(redStyle.Render("Invalid flag values:"))
-		for k, v := range v.Errors {
-			fmt.Printf("%-9s : %s\n", k, v)
-		}
-		fmt.Println("")
-		flag.Usage()
-		os.Exit(1)
+		printInvalidFlagErrors(v)
 	}
 
 	return &cmdArgs
+}
+
+func printInvalidFlagErrors(v *internal.Validator) {
+	fmt.Println(redStyle.Render("Invalid flag values:"))
+	for k, v := range v.Errors {
+		fmt.Printf("%-9s : %s\n", k, v)
+	}
+	fmt.Println("")
+	flag.Usage()
+	os.Exit(1)
 }
 
 func logCmdArgs(cmdArgs *cmdFlags, f *os.File) {

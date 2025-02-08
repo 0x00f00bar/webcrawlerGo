@@ -56,7 +56,7 @@ Since v0.9.0 web APIs are available to manage the db over HTTP.
         twice after initial failure. (default 2)
     -server
         Open a local server on port 8100 to manage db. If provided, all other
-        options will be ignored.
+        options will be ignored (except db-dsn and verbose).
     -ua string
         User-Agent string to use while crawling
          (default "webcrawlerGo/v<version> - Web crawler in Go")
