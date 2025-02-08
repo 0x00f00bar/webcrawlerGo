@@ -72,5 +72,5 @@ func (app *webapp) routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/v1/page", app.listPageHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/page/:id", app.getPageByIdHandler)
 
-	return router
+	return app.logRequestMiddleware(router)
 }

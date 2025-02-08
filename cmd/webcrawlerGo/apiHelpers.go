@@ -238,3 +238,32 @@ func (app *webapp) openBrowser(url string) {
 		app.Logger.Println("error opening browser: ", err)
 	}
 }
+
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func NewLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
+	return &loggingResponseWriter{w, http.StatusOK}
+}
+
+func (lrw *loggingResponseWriter) WriteHeader(code int) {
+	lrw.statusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
+}
+
+func (app *webapp) logRequestMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		preNextLog := fmt.Sprintf(
+			"%s - \"%s %s %s\"",
+			r.RemoteAddr,
+			r.Method,
+			r.RequestURI,
+			r.Proto,
+		)
+		lrw := NewLoggingResponseWriter(w)
+		next.ServeHTTP(lrw, r)
+		app.Logger.Printf("%s %d", preNextLog, lrw.statusCode)
+	})
+}
