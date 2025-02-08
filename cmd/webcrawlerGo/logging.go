@@ -71,7 +71,7 @@ func (cl *crawLogger) Quit() {
 }
 
 // initialiseLoggers returns a log file handle f and a MultiWriter logger (os.Stdout & f)
-func initialiseLoggers() (*os.File, *loggers) {
+func initialiseLoggers(verbose bool) (*os.File, *loggers) {
 	logFileName := fmt.Sprintf(
 		"./%s/logfile-%s.log",
 		logFolderName,
@@ -81,9 +81,13 @@ func initialiseLoggers() (*os.File, *loggers) {
 	if err != nil {
 		panic(err)
 	}
+	logFlags := log.LstdFlags
+	if verbose {
+		logFlags = log.LstdFlags | log.Lshortfile
+	}
 	loggers := &loggers{
-		multiLogger: log.New(io.MultiWriter(os.Stdout, f), "", log.LstdFlags|log.Lshortfile),
-		fileLogger:  log.New(f, "", log.LstdFlags|log.Lshortfile),
+		multiLogger: log.New(io.MultiWriter(os.Stdout, f), "", logFlags),
+		fileLogger:  log.New(f, "", logFlags),
 	}
 	return f, loggers
 }

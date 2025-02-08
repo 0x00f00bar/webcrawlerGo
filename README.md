@@ -64,7 +64,8 @@ Since v0.9.0 web APIs are available to manage the db over HTTP.
         Use this flag to update embedded HREFs in all saved and alive URLs
         belonging to the baseurl.
     -v  Display app version
-
+    -verbose
+        Prints additional info while logging
   Note: 
    - Crawler will ignore the hrefs that begins with "file:", "javascript:", "mailto:", "tel:", "#", "data:"
    - Marking URLs with -murls option will set is_monitored=true in models.

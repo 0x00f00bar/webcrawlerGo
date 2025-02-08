@@ -27,11 +27,12 @@ type cmdFlags struct {
 	userAgent      *string       // -ua
 	updateHrefs    bool          // -update-hrefs
 	runserver      bool          // -server
+	verbose        bool          // -verbose
 }
 
 // parseCmdFlags will parse cmd flags and validate them.
 // Validation failure will exit the program.
-func parseCmdFlags(v *internal.Validator, f *os.File) *cmdFlags {
+func parseCmdFlags(v *internal.Validator) *cmdFlags {
 	// define cmd args; usage message is formatted for better visibility on standard
 	// terminal width of 80 chars
 	printVersion := flag.Bool("v", false, "Display app version")
@@ -108,6 +109,7 @@ belonging to the baseurl.`,
 		`Open a local server on port 8100 to manage db. If provided, all other
 options will be ignored.`,
 	)
+	verbose := flag.Bool("verbose", false, "Prints additional info while logging")
 
 	flag.Parse()
 
@@ -120,6 +122,7 @@ options will be ignored.`,
 		return &cmdFlags{
 			dbDSN:     dbDSN,
 			runserver: *server,
+			verbose:   *verbose,
 		}
 	}
 
@@ -168,6 +171,7 @@ options will be ignored.`,
 		savePath:       *savePath,
 		cutOffDate:     parsedCutOffDate,
 		updateHrefs:    *updateHrefs,
+		verbose:        *verbose,
 	}
 
 	validateFlags(v, &cmdArgs)
@@ -181,6 +185,10 @@ options will be ignored.`,
 		os.Exit(1)
 	}
 
+	return &cmdArgs
+}
+
+func logCmdArgs(cmdArgs *cmdFlags, f *os.File) {
 	printAndLog(printRed, f, "Running crawler with the following options:")
 	printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Log file", f.Name()))
 	printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Base URL", cmdArgs.baseURL.String()))
@@ -213,6 +221,4 @@ options will be ignored.`,
 		}
 		printYellow(message)
 	}
-
-	return &cmdArgs
 }

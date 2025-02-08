@@ -36,13 +36,17 @@ func main() {
 
 	v := internal.NewValidator()
 
+	// parse cmd flags; exit if flags invalid
+	cmdArgs := parseCmdFlags(v)
+
 	// init file and os.Stdout logger
-	f, loggers := initialiseLoggers()
+	f, loggers := initialiseLoggers(cmdArgs.verbose)
 	defer f.Close()
 	f.Write([]byte(banner + "\n" + "v" + version + "\n\n"))
 
-	// parse cmd flags; exit if flags invalid
-	cmdArgs := parseCmdFlags(v, f)
+	if !cmdArgs.runserver {
+		logCmdArgs(cmdArgs, f)
+	}
 
 	// init and test db
 	driverName, dbConns, err := getDBConnections(*cmdArgs.dbDSN, loggers)
