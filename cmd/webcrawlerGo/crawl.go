@@ -22,11 +22,13 @@ func beginCrawl(
 	m *models.Models,
 	loggers *loggers,
 ) error {
-	err := initQueue(ctx, q, cmdArgs, m, loggers)
+	loadedURLs, err := initQueue(ctx, q, cmdArgs, m, loggers)
 	if err != nil {
+		// loggers.multiLogger.Println(err)
 		exitCode = 1
 		return err
 	}
+	loggers.multiLogger.Printf("Loaded %d URLs from model\n", loadedURLs)
 
 	// display min of 5 log messages
 	numMsgs := max(int(float32(*cmdArgs.nCrawlers)*float32(1.5)), 5)
@@ -75,7 +77,7 @@ func initQueue(
 	cmdArgs *cmdFlags,
 	m *models.Models,
 	loggers *loggers,
-) error {
+) (int, error) {
 	// insert base URL to URL model if not present
 	// when present will throw unique constraint error, which can be ignored
 	q.Insert(cmdArgs.baseURL.String())
@@ -84,13 +86,7 @@ func initQueue(
 	_ = m.URLs.Insert(u)
 
 	// get all urls from db, put all in queue's map
-	loadedURLs, err := loadUrlsToQueue(ctx, q, m.URLs, cmdArgs, loggers)
-	if err != nil {
-		// loggers.multiLogger.Println(err)
-		return err
-	}
-	loggers.multiLogger.Printf("Loaded %d URLs from model\n", loadedURLs)
-	return nil
+	return loadUrlsToQueue(ctx, q, m.URLs, cmdArgs, loggers)
 }
 
 func getModifiedHTTPClient(maxIdleConn int) *http.Client {
