@@ -111,7 +111,7 @@ func main() {
 		err = app.serve(ctx, quit)
 		if err != nil {
 			exitCode = 3
-			app.Logger.Println(err)
+			app.Loggers.multiLogger.Println(err)
 		}
 		return
 	}

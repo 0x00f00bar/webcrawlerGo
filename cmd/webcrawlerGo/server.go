@@ -16,16 +16,20 @@ import (
 const serverPort = 8100
 
 type webapp struct {
-	Models   *models.Models
-	Logger   *log.Logger
-	OSSigCtx context.Context // Context for OS Signals (SIGINT,SIGTERM)
+	Models           *models.Models
+	Loggers          *loggers
+	OSSigCtx         context.Context // Context for OS Signals (SIGINT,SIGTERM)
+	IsSavingToDisk   bool            // flag to verify if save2disk func is running
+	CancelSaveToDisk context.CancelFunc
+	IsCrawling       bool // to check if presently crawling
+	CancelCrawl      context.CancelFunc
 }
 
 func (app *webapp) serve(ctx context.Context, quitChan chan os.Signal) error {
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", serverPort),
+		Addr:         fmt.Sprintf("127.0.0.1:%d", serverPort),
 		Handler:      app.routes(),
-		ErrorLog:     app.Logger,
+		ErrorLog:     app.Loggers.multiLogger,
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second, // test with load
@@ -35,11 +39,11 @@ func (app *webapp) serve(ctx context.Context, quitChan chan os.Signal) error {
 
 	go func() {
 		s := <-quitChan
-		app.Logger.Printf("shutting down server. signal: %s\n", s.String())
+		app.Loggers.multiLogger.Printf("shutting down server. signal: %s\n", s.String())
 		shutdownErr <- srv.Shutdown(ctx)
 	}()
 
-	app.Logger.Printf("starting server on %s", srv.Addr)
+	app.Loggers.multiLogger.Printf("starting server on %s", srv.Addr)
 
 	// go func() {
 	// 	time.Sleep(time.Second)
@@ -56,7 +60,7 @@ func (app *webapp) serve(ctx context.Context, quitChan chan os.Signal) error {
 		return err
 	}
 
-	app.Logger.Println("stopped server")
+	app.Loggers.multiLogger.Println("stopped server")
 	return nil
 }
 

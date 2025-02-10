@@ -21,7 +21,11 @@ type envelope map[string]any
 const readMaxRequestBytes = 1024
 
 func (app *webapp) logError(r *http.Request, err error) {
-	app.Logger.Print(err, "; request_method: "+r.Method, ", request_url: "+r.URL.String())
+	app.Loggers.multiLogger.Print(
+		err,
+		"; request_method: "+r.Method,
+		", request_url: "+r.URL.String(),
+	)
 }
 
 func (app *webapp) notFoundResponse(w http.ResponseWriter, r *http.Request) {
@@ -235,7 +239,7 @@ func (app *webapp) openBrowser(url string) {
 
 	err := cmd.Start()
 	if err != nil {
-		app.Logger.Println("error opening browser: ", err)
+		app.Loggers.multiLogger.Println("error opening browser: ", err)
 	}
 }
 
@@ -264,6 +268,6 @@ func (app *webapp) logRequestMiddleware(next http.Handler) http.Handler {
 		)
 		lrw := NewLoggingResponseWriter(w)
 		next.ServeHTTP(lrw, r)
-		app.Logger.Printf("%s %d", preNextLog, lrw.statusCode)
+		app.Loggers.multiLogger.Printf("%s %d", preNextLog, lrw.statusCode)
 	})
 }
