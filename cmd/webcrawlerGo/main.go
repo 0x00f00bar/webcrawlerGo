@@ -103,8 +103,9 @@ func main() {
 
 	if cmdArgs.runserver {
 		app := webapp{
-			Models: &m,
-			Logger: loggers.multiLogger,
+			Models:   &m,
+			Loggers:  loggers,
+			OSSigCtx: ctx,
 		}
 
 		err = app.serve(ctx, quit)
@@ -116,7 +117,15 @@ func main() {
 	}
 
 	if cmdArgs.dbToDisk {
-		err = saveDbContentToDisk(ctx, m.Pages, cmdArgs, cmdArgs.markedURLs, loggers)
+		err = saveDbContentToDisk(
+			ctx,
+			m.Pages,
+			cmdArgs.baseURL,
+			cmdArgs.savePath,
+			cmdArgs.cutOffDate,
+			cmdArgs.markedURLs,
+			loggers,
+		)
 		if err != nil {
 			exitCode = 1
 			loggers.multiLogger.Printf("Error while saving to disk: %v\n", err)

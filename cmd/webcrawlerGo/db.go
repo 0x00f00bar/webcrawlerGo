@@ -153,14 +153,12 @@ func getDBConnections(
 func saveDbContentToDisk(
 	ctx context.Context,
 	pageDB models.PageModel,
-	cmdArgs *cmdFlags,
+	baseurl *url.URL,
+	savePath string,
+	cutOffDate time.Time,
 	markedPaths []string,
 	loggers *loggers,
 ) error {
-	baseurl := cmdArgs.baseURL
-	savePath := cmdArgs.savePath
-	cutOffDate := cmdArgs.cutOffDate
-
 	internal.CreateDirIfNotExists(savePath)
 	loggers.multiLogger.Printf("Saving files to path: %s", savePath)
 
