@@ -103,7 +103,6 @@ func (app *webapp) initiateSaveDBContentHandler(w http.ResponseWriter, r *http.R
 }
 
 func (app *webapp) cancelSaveDBContentHandler(w http.ResponseWriter, r *http.Request) {
-
 	if app.IsSavingToDisk {
 		app.CancelSaveToDisk()
 		err := app.writeJSON(
@@ -119,6 +118,13 @@ func (app *webapp) cancelSaveDBContentHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	err := app.writeJSON(w, http.StatusOK, envelope{"status": "no request running"}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+func (app *webapp) getStatusSaveDBContentHandler(w http.ResponseWriter, r *http.Request) {
+	err := app.writeJSON(w, http.StatusOK, envelope{"saving_to_disk": app.IsSavingToDisk}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

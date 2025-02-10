@@ -78,6 +78,7 @@ func (app *webapp) routes() http.Handler {
 
 	router.HandlerFunc(http.MethodPost, "/v1/saveContent", app.initiateSaveDBContentHandler)
 	router.HandlerFunc(http.MethodPost, "/v1/saveContent/cancel", app.cancelSaveDBContentHandler)
+	router.HandlerFunc(http.MethodGet, "/v1/saveContent/status", app.getStatusSaveDBContentHandler)
 
 	return app.logRequestMiddleware(router)
 }
