@@ -18,6 +18,7 @@ const (
 	// DB queries are not aware of this timeout, db queries timeout at 5s,
 	// keeping defaultTimeout lower than 5s may result in program exiting while a query is being processed.
 	defaultTimeout  = 5 * time.Second
+	maxIdleHttpConn = 50
 	dateLayout      = "2006-01-02"
 	timeStampLayout = dateLayout + "_15-04-05"
 )

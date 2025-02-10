@@ -38,12 +38,12 @@ func loadUrlsToQueue(
 	}
 	intervalDuration, _ := time.ParseDuration(fmt.Sprintf("%dh", *cmdArgs.updateDaysPast*24))
 	currentTime := time.Now()
-	var urlsPushedToQ int = 0
+	var totalUrlsPushedToQ int = 0
 	// if isMonitored true and timestamp after updateInterval in db, set them as true, others false to not process
 	for _, urlDB := range dburls {
 		select {
 		case <-ctx.Done():
-			return urlsPushedToQ, nil
+			return totalUrlsPushedToQ, nil
 		default:
 			// skip dead urls
 			// crawler will never crawl a dead url,
@@ -92,15 +92,15 @@ func loadUrlsToQueue(
 				if fetchContent {
 					q.InsertForce(urlDB.URL)
 					q.SetMapValue(urlDB.URL, fetchContent)
-					urlsPushedToQ += 1
+					totalUrlsPushedToQ += 1
 				} else if cmdArgs.updateHrefs {
 					q.InsertForce(urlDB.URL)
-					urlsPushedToQ += 1
+					totalUrlsPushedToQ += 1
 				} else {
 					q.SetMapValue(urlDB.URL, fetchContent)
 				}
 			}
 		}
 	}
-	return urlsPushedToQ, nil
+	return totalUrlsPushedToQ, nil
 }

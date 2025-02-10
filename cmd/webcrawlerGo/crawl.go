@@ -22,29 +22,12 @@ func beginCrawl(
 	m *models.Models,
 	loggers *loggers,
 ) error {
-	// insert base URL to URL model if not present
-	// when present will throw unique constraint error, which can be ignored
-	q.Insert(cmdArgs.baseURL.String())
-	var t time.Time
-	u := models.NewURL(cmdArgs.baseURL.String(), t, t, false)
-	_ = m.URLs.Insert(u)
-
-	// get all urls from db, put all in queue's map
-	loadedURLs, err := loadUrlsToQueue(ctx, q, m.URLs, cmdArgs, loggers)
+	err := initQueue(ctx, q, cmdArgs, m, loggers)
 	if err != nil {
 		exitCode = 1
-		// loggers.multiLogger.Println(err)
 		return err
 	}
-	loggers.multiLogger.Printf("Loaded %d URLs from model\n", loadedURLs)
 
-	// if retry == 0, don't init request stats map
-	var retryRequestStats map[string]int
-	if *cmdArgs.retryTime > 0 {
-		retryRequestStats = map[string]int{}
-	} else {
-		retryRequestStats = nil
-	}
 	// display min of 5 log messages
 	numMsgs := max(int(float32(*cmdArgs.nCrawlers)*float32(1.5)), 5)
 	teaProg := tea.NewProgram(newteaProgModel(numMsgs, quit))
@@ -54,37 +37,13 @@ func beginCrawl(
 		crawlerCount: *cmdArgs.nCrawlers,
 	}
 
-	crawlerCfg := &webcrawler.CrawlerConfig{
-		Queue:          q,
-		Models:         m,
-		BaseURL:        cmdArgs.baseURL,
-		UserAgent:      *cmdArgs.userAgent,
-		MarkedURLs:     cmdArgs.markedURLs,
-		IgnorePatterns: cmdArgs.ignorePattern,
-		RequestDelay:   cmdArgs.reqDelay,
-		IdleTimeout:    cmdArgs.idleTimeout,
-		Logger:         loggers.fileLogger,
-		RetryTimes:     *cmdArgs.retryTime,
-		FailedRequests: retryRequestStats,
-		Ctx:            ctx,
-		PrettyLogger:   prettyLogger,
-	}
-
-	// init n crawlers
-	crawlerArmy, err := webcrawler.NNewCrawlers(*cmdArgs.nCrawlers, "crawler", crawlerCfg)
+	crawlerArmy, err := getCrawlerArmy(ctx, cmdArgs, q, m, loggers, prettyLogger)
 	if err != nil {
 		exitCode = 2
-		// loggers.multiLogger.Println(err)
 		return err
 	}
 
-	modifiedTransport := http.DefaultTransport.(*http.Transport).Clone()
-	modifiedTransport.MaxIdleConnsPerHost = 50
-
-	httpClient := &http.Client{
-		Timeout:   defaultTimeout,
-		Transport: modifiedTransport,
-	}
+	httpClient := getModifiedHTTPClient(maxIdleHttpConn)
 
 	// init waitgroup
 	var wg sync.WaitGroup
@@ -108,4 +67,92 @@ func beginCrawl(
 	loggers.fileLogger.Println("Done")
 	fmt.Println(redStyle.Margin(0, 0, 1, 2).Render("Done"))
 	return nil
+}
+
+func initQueue(
+	ctx context.Context,
+	q *queue.UniqueQueue,
+	cmdArgs *cmdFlags,
+	m *models.Models,
+	loggers *loggers,
+) error {
+	// insert base URL to URL model if not present
+	// when present will throw unique constraint error, which can be ignored
+	q.Insert(cmdArgs.baseURL.String())
+	var t time.Time
+	u := models.NewURL(cmdArgs.baseURL.String(), t, t, false)
+	_ = m.URLs.Insert(u)
+
+	// get all urls from db, put all in queue's map
+	loadedURLs, err := loadUrlsToQueue(ctx, q, m.URLs, cmdArgs, loggers)
+	if err != nil {
+		// loggers.multiLogger.Println(err)
+		return err
+	}
+	loggers.multiLogger.Printf("Loaded %d URLs from model\n", loadedURLs)
+	return nil
+}
+
+func getModifiedHTTPClient(maxIdleConn int) *http.Client {
+	modifiedTransport := http.DefaultTransport.(*http.Transport).Clone()
+	modifiedTransport.MaxIdleConnsPerHost = maxIdleConn
+
+	httpClient := &http.Client{
+		Timeout:   defaultTimeout,
+		Transport: modifiedTransport,
+	}
+	return httpClient
+}
+
+func getCrawlerConfig(
+	ctx context.Context,
+	cmdArgs *cmdFlags,
+	q *queue.UniqueQueue,
+	m *models.Models,
+	loggers *loggers,
+	prettyLogger webcrawler.PrettyLogger,
+) *webcrawler.CrawlerConfig {
+	// if retry == 0, don't init request stats map
+	var retryRequestStats map[string]int
+	if *cmdArgs.retryTime > 0 {
+		retryRequestStats = map[string]int{}
+	}
+
+	crawlerCfg := &webcrawler.CrawlerConfig{
+		Queue:          q,
+		Models:         m,
+		BaseURL:        cmdArgs.baseURL,
+		UserAgent:      *cmdArgs.userAgent,
+		MarkedURLs:     cmdArgs.markedURLs,
+		IgnorePatterns: cmdArgs.ignorePattern,
+		RequestDelay:   cmdArgs.reqDelay,
+		IdleTimeout:    cmdArgs.idleTimeout,
+		Logger:         loggers.fileLogger,
+		RetryTimes:     *cmdArgs.retryTime,
+		FailedRequests: retryRequestStats,
+		Ctx:            ctx,
+		PrettyLogger:   prettyLogger,
+	}
+
+	return crawlerCfg
+}
+
+func getCrawlerArmy(
+	ctx context.Context,
+	cmdArgs *cmdFlags,
+	q *queue.UniqueQueue,
+	m *models.Models,
+	loggers *loggers,
+	prettyLogger webcrawler.PrettyLogger,
+) ([]*webcrawler.Crawler, error) {
+	crawlerCfg := getCrawlerConfig(ctx, cmdArgs, q, m, loggers, prettyLogger)
+
+	// init n crawlers
+	crawlerArmy, err := webcrawler.NNewCrawlers(*cmdArgs.nCrawlers, "crawler", crawlerCfg)
+	if err != nil {
+		exitCode = 2
+		// loggers.multiLogger.Println(err)
+		return nil, err
+	}
+	return crawlerArmy, nil
 }
