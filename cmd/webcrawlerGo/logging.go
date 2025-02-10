@@ -161,6 +161,7 @@ func (m teaProgModel) View() string {
 	}
 
 	if m.quitting {
+		// send SIGINT to quitChan to cancel the main context in listenForSignals func
 		m.quitChan <- syscall.SIGINT
 		s += "\n" + redStyle.Render("Waiting for crawlers to quit... ") + "\n\n"
 	}

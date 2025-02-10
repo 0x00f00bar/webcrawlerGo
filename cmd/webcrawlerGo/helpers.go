@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 
 	"github.com/0x00f00bar/webcrawlerGo/queue"
 )
@@ -63,8 +61,11 @@ func listenForSignals(
 ) {
 	defer cancel()
 	// quit := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	// wait for signal
+
+	// no need since OS signal is now hijacked by bubbletea
+	// signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// wait for signal from teaProg
 	s := <-sigChan
 	// clear queue
 	queue.Clear()
