@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -76,6 +75,9 @@ func (app *webapp) routes() http.Handler {
 
 	router.HandlerFunc(http.MethodGet, "/v1/page", app.listPageHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/page/:id", app.getPageByIdHandler)
+
+	router.HandlerFunc(http.MethodPost, "/v1/saveContent", app.initiateSaveDBContentHandler)
+	router.HandlerFunc(http.MethodPost, "/v1/saveContent/cancel", app.cancelSaveDBContentHandler)
 
 	return app.logRequestMiddleware(router)
 }
