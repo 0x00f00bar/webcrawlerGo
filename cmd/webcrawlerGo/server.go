@@ -16,8 +16,9 @@ import (
 const serverPort = 8100
 
 type webapp struct {
-	Models *models.Models
-	Logger *log.Logger
+	Models   *models.Models
+	Logger   *log.Logger
+	OSSigCtx context.Context // Context for OS Signals (SIGINT,SIGTERM)
 }
 
 func (app *webapp) serve(ctx context.Context, quitChan chan os.Signal) error {
