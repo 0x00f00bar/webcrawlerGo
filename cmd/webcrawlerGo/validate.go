@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -10,9 +11,7 @@ import (
 
 func validateFlags(v *internal.Validator, args *cmdFlags) {
 	// validate baseurl
-	v.Check(args.baseURL.String() != "", "baseurl", "must be provided")
-	v.Check(internal.IsAbsoluteURL(args.baseURL.String()), "baseurl", "must be absolute URL")
-	v.Check(internal.IsValidScheme(args.baseURL.Scheme), "baseurl", "scheme must be http/https")
+	validateBaseURL(v, *args.baseURL)
 
 	// validate crawler
 	v.Check(
@@ -53,4 +52,10 @@ func validateFlags(v *internal.Validator, args *cmdFlags) {
 	if args.dbToDisk {
 		v.Check(args.savePath != "", "path", "must be provided with 'db2disk' flag")
 	}
+}
+
+func validateBaseURL(v *internal.Validator, baseURL url.URL) {
+	v.Check(baseURL.String() != "", "baseurl", "must be provided")
+	v.Check(internal.IsAbsoluteURL(baseURL.String()), "baseurl", "must be absolute URL")
+	v.Check(internal.IsValidScheme(baseURL.Scheme), "baseurl", "scheme must be http/https")
 }
