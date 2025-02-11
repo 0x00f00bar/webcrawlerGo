@@ -41,7 +41,7 @@ func (app *webapp) initiateSaveDBContentHandler(w http.ResponseWriter, r *http.R
 	// validate baseurl
 	baseURL, err := url.Parse(input.BaseURL)
 	if err != nil {
-		app.badRequestResponse(w, r, fmt.Errorf("could not parse base_url: %v", err))
+		app.badRequestResponse(w, r, fmt.Errorf("could not parse baseurl: %v", err))
 		return
 	}
 	v := internal.NewValidator()
@@ -93,6 +93,7 @@ func (app *webapp) initiateSaveDBContentHandler(w http.ResponseWriter, r *http.R
 			app.Loggers.multiLogger.Printf("Error while saving to disk: %v\n", err)
 		}
 		isProcessingChan <- false
+		close(isProcessingChan)
 	}()
 
 	msg := fmt.Sprintf("request accepted, saving files to: %s", savePath)
