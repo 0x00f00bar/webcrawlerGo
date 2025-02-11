@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"strings"
@@ -197,9 +198,9 @@ func printInvalidFlagErrors(v *internal.Validator) {
 	os.Exit(1)
 }
 
-func logCmdArgs(cmdArgs *cmdFlags, f *os.File) {
+func logCmdArgs(cmdArgs *cmdFlags, f io.Writer) {
 	printAndLog(printRed, f, "Running crawler with the following options:")
-	printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Log file", f.Name()))
+	printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Log file", currentLogFileName))
 	printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Base URL", cmdArgs.baseURL.String()))
 	printAndLog(printCyan, f, fmt.Sprintf("%-16s: %t", "DB-2-Disk", cmdArgs.dbToDisk))
 	if cmdArgs.dbToDisk {
@@ -224,7 +225,7 @@ func logCmdArgs(cmdArgs *cmdFlags, f *os.File) {
 	if len(cmdArgs.markedURLs) < 1 {
 		message := "WARNING: Marked URLs list is empty. "
 		if cmdArgs.dbToDisk {
-			message += "This will save all monitored URLs.\nTIP: Use -murls for filtering."
+			message += "This will fetch all monitored URLs.\nTIP: Use -murls for filtering."
 		} else {
 			message += "Crawlers will update URLs only from model which are set for monitoring."
 		}

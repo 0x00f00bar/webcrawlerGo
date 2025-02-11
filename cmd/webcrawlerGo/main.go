@@ -24,7 +24,8 @@ var (
 |__/|__/\___/_.___/\___/_/   \__,_/ |__/|__/_/\___/_/   \____/\____/ 
                                                                      `
 
-	exitCode int
+	exitCode           int
+	currentLogFileName string
 )
 
 func main() {

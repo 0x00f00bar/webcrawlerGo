@@ -72,12 +72,12 @@ func (cl *crawLogger) Quit() {
 
 // initialiseLoggers returns a log file handle f and a MultiWriter logger (os.Stdout & f)
 func initialiseLoggers(verbose bool) (*os.File, *loggers) {
-	logFileName := fmt.Sprintf(
+	currentLogFileName = fmt.Sprintf(
 		"./%s/webcrawlerGo-%s.log",
 		logFolderName,
 		time.Now().Format("02-01-2006-15-04-05"),
 	)
-	f, err := os.OpenFile(logFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(currentLogFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
@@ -172,7 +172,7 @@ func (m teaProgModel) View() string {
 // printAndLog will print msg to [os.Stdout] using printFunc
 // and write to logFile. printFunc will print on new line and
 // new line will be added to msg while writing to logFile
-func printAndLog(printFunc func(string), logFile *os.File, msg string) {
+func printAndLog(printFunc func(string), logFile io.Writer, msg string) {
 	printFunc(msg)
 	logFile.Write([]byte(msg + "\n"))
 }
