@@ -24,6 +24,7 @@ type webapp struct {
 	IsCrawling       bool // to check if presently crawling
 	CancelCrawl      context.CancelFunc
 	CrawlerQueue     *queue.UniqueQueue
+	StreamChan       LogStreamChan
 }
 
 func (app *webapp) serve(ctx context.Context, quitChan chan os.Signal) error {
@@ -81,6 +82,11 @@ func (app *webapp) routes() http.Handler {
 	router.HandlerFunc(http.MethodPost, "/v1/saveContent", app.initiateSaveDBContentHandler)
 	router.HandlerFunc(http.MethodPost, "/v1/saveContent/cancel", app.cancelSaveDBContentHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/saveContent/status", app.getStatusSaveDBContentHandler)
+
+	router.HandlerFunc(http.MethodPost, "/v1/crawl", app.initiateCrawlHandler)
+	router.HandlerFunc(http.MethodPost, "/v1/crawl/cancel", app.cancelCrawlHandler)
+	router.HandlerFunc(http.MethodGet, "/v1/crawl/status", app.getStatusCrawlHandler)
+	router.HandlerFunc(http.MethodGet, "/v1/crawl/logstream", app.streamCrawlerLogHandler)
 
 	return app.logRequestMiddleware(router)
 }
