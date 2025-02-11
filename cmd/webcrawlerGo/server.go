@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/0x00f00bar/webcrawlerGo/models"
+	"github.com/0x00f00bar/webcrawlerGo/queue"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -22,6 +23,7 @@ type webapp struct {
 	CancelSaveToDisk context.CancelFunc
 	IsCrawling       bool // to check if presently crawling
 	CancelCrawl      context.CancelFunc
+	CrawlerQueue     *queue.UniqueQueue
 }
 
 func (app *webapp) serve(ctx context.Context, quitChan chan os.Signal) error {

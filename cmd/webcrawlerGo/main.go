@@ -103,9 +103,10 @@ func main() {
 
 	if cmdArgs.runserver {
 		app := webapp{
-			Models:   &m,
-			Loggers:  loggers,
-			OSSigCtx: ctx,
+			Models:       &m,
+			Loggers:      loggers,
+			OSSigCtx:     ctx,
+			CrawlerQueue: q,
 		}
 
 		err = app.serve(ctx, quit)
