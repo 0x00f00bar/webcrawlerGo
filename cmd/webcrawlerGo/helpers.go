@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -26,6 +27,20 @@ func getMarkedURLS(mURLStr string) []string {
 	}
 
 	return markedURLs
+}
+
+// trimAndParseURL trims and parses a string into [url.URL]
+func trimAndParseURL(URL *string) (*url.URL, error) {
+
+	// trim whitespace and drop trailing '/'
+	*URL = strings.TrimSpace(*URL)
+	*URL = strings.TrimRight(*URL, "/")
+	parsedURL, err := url.Parse(*URL)
+	if err != nil {
+		return nil, err
+	}
+	return parsedURL, nil
+
 }
 
 // seperateCmdArgs returns string slice of comma seperated cmd args

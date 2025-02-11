@@ -135,11 +135,7 @@ options will be ignored (except db-dsn and verbose).`,
 		}
 	}
 
-	// trim whitespace and drop trailing '/'
-	*baseURL = strings.TrimSpace(*baseURL)
-	*baseURL = strings.TrimRight(*baseURL, "/")
-
-	parsedBaseURL, err := url.Parse(*baseURL)
+	parsedBaseURL, err := trimAndParseURL(baseURL)
 	if err != nil {
 		fmt.Printf("error: could not parse base URL: %s\n", err.Error())
 		os.Exit(1)

@@ -73,7 +73,7 @@ func (cl *crawLogger) Quit() {
 // initialiseLoggers returns a log file handle f and a MultiWriter logger (os.Stdout & f)
 func initialiseLoggers(verbose bool) (*os.File, *loggers) {
 	logFileName := fmt.Sprintf(
-		"./%s/logfile-%s.log",
+		"./%s/webcrawlerGo-%s.log",
 		logFolderName,
 		time.Now().Format("02-01-2006-15-04-05"),
 	)
