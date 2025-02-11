@@ -107,7 +107,7 @@ func (app *webapp) cancelSaveDBContentHandler(w http.ResponseWriter, r *http.Req
 		app.CancelSaveToDisk()
 		err := app.writeJSON(
 			w,
-			http.StatusOK,
+			http.StatusAccepted,
 			envelope{"status": "previous request was cancelled"},
 			nil,
 		)
