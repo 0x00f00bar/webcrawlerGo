@@ -13,34 +13,37 @@ import (
 type LogStreamChan chan crawlerStreamLog
 
 type crawlerStreamLog struct {
-	Time    string //timestamp
+	Time    string // timestamp
 	Message string
 }
 
 func (l LogStreamChan) Log(message string) {
 	select {
 	case l <- crawlerStreamLog{Message: message, Time: time.Now().Format(time.RFC3339)}:
+		fmt.Println("1")
 	default:
+		fmt.Println("2")
 	}
 }
 
 func (l LogStreamChan) Quit() {
+	l.Log("Done crawling")
 	close(l)
 }
 
 func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		BaseURL        string         `json:"baseurl"`      // -baseurl
-		MarkedURLs     *string        `json:"murls"`        // -murls
-		UpdateDaysPast *int           `json:"days"`         // -days
-		DBDSN          *string        `json:"db-dsn"`       // -db-dsn
-		IdleTimeout    *time.Duration `json:"idle-time"`    // -idle-time
-		IgnorePattern  *string        `json:"ignore"`       // -ignore
-		NCrawlers      *int           `json:"n"`            // -n
-		ReqDelay       *time.Duration `json:"req-delay"`    // -req-delay
-		RetryTime      *int           `json:"retry"`        // -retry
-		UserAgent      *string        `json:"ua"`           // -ua
-		UpdateHrefs    *bool          `json:"update-hrefs"` // -update-hrefs
+		BaseURL        string  `json:"baseurl"`      // -baseurl
+		MarkedURLs     *string `json:"murls"`        // -murls
+		UpdateDaysPast *int    `json:"days"`         // -days
+		DBDSN          *string `json:"db-dsn"`       // -db-dsn
+		IdleTimeout    *string `json:"idle-time"`    // -idle-time
+		IgnorePattern  *string `json:"ignore"`       // -ignore
+		NCrawlers      *int    `json:"n"`            // -n
+		ReqDelay       *string `json:"req-delay"`    // -req-delay
+		RetryTime      *int    `json:"retry"`        // -retry
+		UserAgent      *string `json:"ua"`           // -ua
+		UpdateHrefs    *bool   `json:"update-hrefs"` // -update-hrefs
 	}
 
 	if app.IsCrawling {
@@ -83,31 +86,51 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 		markedURLSlice = getMarkedURLS(*input.MarkedURLs)
 	}
 	if input.UpdateDaysPast == nil {
+		input.UpdateDaysPast = new(int)
 		*input.UpdateDaysPast = 1
 	}
 	if input.DBDSN == nil {
+		input.DBDSN = new(string)
 		*input.DBDSN = ""
 	}
 	if input.IdleTimeout == nil {
-		*input.IdleTimeout = 10 * time.Second
+		input.IdleTimeout = new(string)
+		*input.IdleTimeout = "10s"
 	}
 	if input.IgnorePattern == nil {
+		input.IgnorePattern = new(string)
 		*input.IgnorePattern = ""
 	}
 	if input.NCrawlers == nil {
+		input.NCrawlers = new(int)
 		*input.NCrawlers = 10
 	}
 	if input.ReqDelay == nil {
-		*input.ReqDelay = time.Millisecond * 50
+		input.ReqDelay = new(string)
+		*input.ReqDelay = "50ms"
 	}
 	if input.RetryTime == nil {
+		input.RetryTime = new(int)
 		*input.RetryTime = 2
 	}
 	if input.UserAgent == nil {
+		input.UserAgent = new(string)
 		*input.UserAgent = defaultUserAgent
 	}
 	if input.UpdateHrefs == nil {
+		input.UpdateHrefs = new(bool)
 		*input.UpdateHrefs = false
+	}
+
+	requestDelay, err := time.ParseDuration(*input.ReqDelay)
+	if err != nil {
+		app.badRequestResponse(w, r, fmt.Errorf("could not parse req-delay: %v", err))
+		return
+	}
+	idleTime, err := time.ParseDuration(*input.IdleTimeout)
+	if err != nil {
+		app.badRequestResponse(w, r, fmt.Errorf("could not parse idle-time: %v", err))
+		return
 	}
 
 	cmdArgs := cmdFlags{
@@ -118,8 +141,8 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 		ignorePattern:  seperateCmdArgs(*input.IgnorePattern),
 		dbDSN:          input.DBDSN,
 		userAgent:      input.UserAgent,
-		reqDelay:       *input.ReqDelay,
-		idleTimeout:    *input.IdleTimeout,
+		reqDelay:       requestDelay,
+		idleTimeout:    idleTime,
 		retryTime:      input.RetryTime,
 		savePath:       defaultSavePath,
 		cutOffDate:     parsedCutOffDate,
@@ -132,6 +155,7 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
+	logCmdArgs(&cmdArgs, app.Loggers.fileLogger.Writer())
 
 	ctx, cancel := context.WithCancel(app.OSSigCtx)
 
@@ -154,10 +178,14 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 
 		loadedURLs, err := initQueue(ctx, app.CrawlerQueue, &cmdArgs, app.Models, app.Loggers)
 		if err != nil {
-			app.Loggers.multiLogger.Printf("Error while initialising queue: %v\n", err)
+			msg := fmt.Sprintf("Error while initialising queue: %v\n", err)
+			app.StreamChan.Log(msg)
+			app.Loggers.multiLogger.Print(msg)
 			return
 		}
-		app.Loggers.multiLogger.Printf("Loaded %d URLs from model\n", loadedURLs)
+		msg := fmt.Sprintf("Loaded %d URLs from model\n", loadedURLs)
+		app.StreamChan.Log(msg)
+		app.Loggers.multiLogger.Print(msg)
 
 		crawlerArmy, err := getCrawlerArmy(
 			ctx,
@@ -168,7 +196,9 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 			app.StreamChan,
 		)
 		if err != nil {
-			app.Loggers.multiLogger.Printf("Error while creating crawlers: %v\n", err)
+			msg := fmt.Sprintf("Error while creating crawlers: %v\n", err)
+			app.StreamChan.Log(msg)
+			app.Loggers.multiLogger.Print(msg)
 			return
 		}
 
@@ -185,7 +215,6 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 		wg.Wait()
 
 		app.Loggers.multiLogger.Println("Done crawling")
-
 	}()
 
 	err = app.writeJSON(
@@ -228,13 +257,16 @@ func (app *webapp) getStatusCrawlHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (app *webapp) streamCrawlerLogHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Expose-Headers", "Content-Type")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Content-Type", "text/event-stream")
 
 	for logMsg := range app.StreamChan {
-		fmt.Fprintf(w, "data: %s - %s", logMsg.Time, logMsg.Message)
+		fmt.Fprintf(w, "data: %s - %s\n\n", logMsg.Time, logMsg.Message)
 		if flusher, ok := w.(http.Flusher); ok {
+			fmt.Println("flused")
 			flusher.Flush()
 		}
 	}
