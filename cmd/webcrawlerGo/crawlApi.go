@@ -263,11 +263,25 @@ func (app *webapp) streamCrawlerLogHandler(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Content-Type", "text/event-stream")
 
-	for logMsg := range app.StreamChan {
-		fmt.Fprintf(w, "data: %s - %s\n\n", logMsg.Time, logMsg.Message)
-		if flusher, ok := w.(http.Flusher); ok {
-			fmt.Println("flused")
-			flusher.Flush()
+	clientGone := r.Context().Done()
+	// var flusher http.Flusher
+	rc := http.NewResponseController(w)
+	// flusher, ok := w.(http.Flusher)
+	// if !ok {
+	// 	app.serverErrorResponse(w, r, fmt.Errorf("streaming unsupported"))
+	// 	return
+	// }
+
+	for {
+		select {
+		case <-clientGone:
+			fmt.Println("Client disconnected")
+			return
+		case <-app.StreamChan:
+			logMsg := <-app.StreamChan
+			fmt.Fprintf(w, "data: %s - %s\n\n", logMsg.Time, logMsg.Message)
+			rc.Flush()
+			// flusher.Flush()
 		}
 	}
 }
