@@ -10,25 +10,34 @@ import (
 	"github.com/0x00f00bar/webcrawlerGo/internal"
 )
 
-type LogStreamChan chan crawlerStreamLog
+type streamLogger struct {
+	streamChan chan crawlerStreamLog
+	mu         sync.Mutex
+	crawlers   int
+	quitChan   chan bool
+}
 
 type crawlerStreamLog struct {
 	Time    string // timestamp
 	Message string
 }
 
-func (l LogStreamChan) Log(message string) {
+func (l *streamLogger) Log(message string) {
 	select {
-	case l <- crawlerStreamLog{Message: message, Time: time.Now().Format(time.RFC3339)}:
-		fmt.Println("1")
+	case l.streamChan <- crawlerStreamLog{Message: message, Time: time.Now().Format(time.RFC3339)}:
 	default:
-		fmt.Println("2")
 	}
 }
 
-func (l LogStreamChan) Quit() {
-	l.Log("Done crawling")
-	close(l)
+func (l *streamLogger) Quit() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.crawlers--
+	// quit when last crawler exits
+	if l.crawlers == 0 {
+		l.Log("Done crawling")
+		l.quitChan <- true
+	}
 }
 
 func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) {
@@ -168,23 +177,28 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 	}()
 
 	app.IsCrawling = true
-	app.StreamChan = make(LogStreamChan)
+	app.StreamLogger = &streamLogger{
+		crawlers:   *cmdArgs.nCrawlers,
+		streamChan: make(chan crawlerStreamLog),
+		quitChan:   app.CrawlersQuit,
+	}
 	go func() {
 		// send false after Goexit or when crawlers are done
 		defer func() {
 			isProcessingChan <- false
 			close(isProcessingChan)
+			app.StreamLogger = nil
 		}()
 
 		loadedURLs, err := initQueue(ctx, app.CrawlerQueue, &cmdArgs, app.Models, app.Loggers)
 		if err != nil {
 			msg := fmt.Sprintf("Error while initialising queue: %v\n", err)
-			app.StreamChan.Log(msg)
+			app.StreamLogger.Log(msg)
 			app.Loggers.multiLogger.Print(msg)
 			return
 		}
 		msg := fmt.Sprintf("Loaded %d URLs from model\n", loadedURLs)
-		app.StreamChan.Log(msg)
+		app.StreamLogger.Log(msg)
 		app.Loggers.multiLogger.Print(msg)
 
 		crawlerArmy, err := getCrawlerArmy(
@@ -193,11 +207,11 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 			app.CrawlerQueue,
 			app.Models,
 			app.Loggers,
-			app.StreamChan,
+			app.StreamLogger,
 		)
 		if err != nil {
 			msg := fmt.Sprintf("Error while creating crawlers: %v\n", err)
-			app.StreamChan.Log(msg)
+			app.StreamLogger.Log(msg)
 			app.Loggers.multiLogger.Print(msg)
 			return
 		}
@@ -257,31 +271,51 @@ func (app *webapp) getStatusCrawlHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (app *webapp) streamCrawlerLogHandler(w http.ResponseWriter, r *http.Request) {
+
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Expose-Headers", "Content-Type")
 	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("X-Accel-Buffering", "no")
 
-	clientGone := r.Context().Done()
-	// var flusher http.Flusher
-	rc := http.NewResponseController(w)
-	// flusher, ok := w.(http.Flusher)
-	// if !ok {
-	// 	app.serverErrorResponse(w, r, fmt.Errorf("streaming unsupported"))
-	// 	return
-	// }
+	if app.IsCrawling {
+		w.Header().Set("Connection", "keep-alive")
 
-	for {
-		select {
-		case <-clientGone:
-			fmt.Println("Client disconnected")
+		clientGone := r.Context().Done()
+
+		rc := http.NewResponseController(w)
+
+		err := rc.Flush()
+		if err != nil {
+			app.Loggers.multiLogger.Println("============== streaming not supported ===============")
+			w.Write([]byte("event-streaming is not supported by this endpoint"))
+			w.WriteHeader(http.StatusInternalServerError)
 			return
-		case <-app.StreamChan:
-			logMsg := <-app.StreamChan
-			fmt.Fprintf(w, "data: %s - %s\n\n", logMsg.Time, logMsg.Message)
-			rc.Flush()
-			// flusher.Flush()
 		}
+
+		for {
+			if !app.IsCrawling {
+				w.Header().Set("Connection", "close")
+				fmt.Fprintf(w, "data: %s - %s\n\n", time.Now().Format(time.RFC3339), "Crawling halted")
+				rc.Flush()
+				return
+			}
+			select {
+			case <-clientGone:
+				app.Loggers.multiLogger.Println("Client disconnected, streaming stopped")
+				return
+
+			case logMsg := <-app.StreamLogger.streamChan:
+				fmt.Fprintf(w, "data: %s - %s\n\n", logMsg.Time, logMsg.Message)
+				time.Sleep(100 * time.Millisecond)
+			}
+
+			rc.Flush()
+		}
+
+	} else {
+		w.Header().Set("Connection", "close")
+		fmt.Fprintf(w, "data: %s - %s\n\n", time.Now().Format(time.RFC3339), "No event to stream")
+		return
 	}
 }
