@@ -108,9 +108,10 @@ func main() {
 			Loggers:      loggers,
 			OSSigCtx:     ctx,
 			CrawlerQueue: q,
+			CrawlersQuit: make(chan bool),
 		}
 
-		err = app.serve(ctx, quit)
+		err = app.serve(ctx)
 		if err != nil {
 			exitCode = 3
 			app.Loggers.multiLogger.Println(err)

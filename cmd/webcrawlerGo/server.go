@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/0x00f00bar/webcrawlerGo/models"
@@ -23,10 +25,11 @@ type webapp struct {
 	IsCrawling       bool // to check if presently crawling
 	CancelCrawl      context.CancelFunc
 	CrawlerQueue     *queue.UniqueQueue
-	StreamChan       LogStreamChan
+	StreamLogger     *streamLogger
+	CrawlersQuit     chan bool
 }
 
-func (app *webapp) serve(ctx context.Context, quitChan chan os.Signal) error {
+func (app *webapp) serve(ctx context.Context) error {
 	srv := &http.Server{
 		Addr:         fmt.Sprintf("127.0.0.1:%d", serverPort),
 		Handler:      app.routes(),
@@ -39,9 +42,25 @@ func (app *webapp) serve(ctx context.Context, quitChan chan os.Signal) error {
 	shutdownErr := make(chan error)
 
 	go func() {
-		s := <-quitChan
-		app.Loggers.multiLogger.Printf("shutting down server. signal: %s\n", s.String())
-		shutdownErr <- srv.Shutdown(ctx)
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+		s := <-sigChan
+		if app.IsCrawling {
+			app.Loggers.multiLogger.Println("Cancelling crawl...")
+			app.CancelCrawl()
+			// wait for crawlers to quit before shutdown
+			<-app.CrawlersQuit
+		}
+		if app.IsSavingToDisk {
+			app.Loggers.multiLogger.Println("Cancelling content transfer...")
+			app.CancelSaveToDisk()
+			// wait for sometime for io handles to close
+			time.Sleep(200 * time.Millisecond)
+		}
+		app.Loggers.multiLogger.Printf("Shutting down server. signal: %s\n", s.String())
+		tCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+		shutdownErr <- srv.Shutdown(tCtx)
 	}()
 
 	app.Loggers.multiLogger.Printf("starting server on %s", srv.Addr)
