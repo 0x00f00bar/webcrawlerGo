@@ -168,6 +168,7 @@ func (c *Crawler) Crawl(client *http.Client) {
 		case <-c.Ctx.Done():
 			msg := fmt.Sprintf("%s: Termination signal received. Shutting down", c.Name)
 			c.Log(msg)
+			c.PrettyLogger.Quit()
 			return
 		default:
 			// get item from queue
