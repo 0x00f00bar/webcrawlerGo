@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/0x00f00bar/webcrawlerGo/internal"
-	"github.com/julienschmidt/httprouter"
 )
 
 type envelope map[string]any
@@ -78,9 +77,9 @@ func (app *webapp) editConflictResponse(w http.ResponseWriter, r *http.Request) 
 }
 
 func (app *webapp) readIDParam(r *http.Request) (int64, error) {
-	params := httprouter.ParamsFromContext(r.Context())
+	param := r.PathValue("id")
 
-	id, err := strconv.ParseInt(params.ByName("id"), 10, 64)
+	id, err := strconv.ParseInt(param, 10, 64)
 	if err != nil {
 		return 0, errors.New("invalid id parameter")
 	}

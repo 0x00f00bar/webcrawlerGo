@@ -10,7 +10,6 @@ import (
 
 	"github.com/0x00f00bar/webcrawlerGo/models"
 	"github.com/0x00f00bar/webcrawlerGo/queue"
-	"github.com/julienschmidt/httprouter"
 )
 
 const serverPort = 8100
@@ -67,26 +66,46 @@ func (app *webapp) serve(ctx context.Context, quitChan chan os.Signal) error {
 }
 
 func (app *webapp) routes() http.Handler {
-	router := httprouter.New()
-	router.NotFound = http.HandlerFunc(app.notFoundResponse)
-	router.MethodNotAllowed = http.HandlerFunc(app.methodNotAllowedResponse)
+	// router := httprouter.New()
+	// router.NotFound = http.HandlerFunc(app.notFoundResponse)
+	// router.MethodNotAllowed = http.HandlerFunc(app.methodNotAllowedResponse)
 
-	router.HandlerFunc(http.MethodGet, "/v1/url", app.listURLHandler)
-	router.HandlerFunc(http.MethodGet, "/v1/url/:id", app.getURLByIdHandler)
-	router.HandlerFunc(http.MethodPost, "/v1/url", app.createURLHandler)
-	router.HandlerFunc(http.MethodPatch, "/v1/url/:id", app.updateURLHandler)
+	// router.HandlerFunc(http.MethodGet, "/v1/url", app.listURLHandler)
+	// router.HandlerFunc(http.MethodGet, "/v1/url/:id", app.getURLByIdHandler)
+	// router.HandlerFunc(http.MethodPost, "/v1/url", app.createURLHandler)
+	// router.HandlerFunc(http.MethodPatch, "/v1/url/:id", app.updateURLHandler)
 
-	router.HandlerFunc(http.MethodGet, "/v1/page", app.listPageHandler)
-	router.HandlerFunc(http.MethodGet, "/v1/page/:id", app.getPageByIdHandler)
+	// router.HandlerFunc(http.MethodGet, "/v1/page", app.listPageHandler)
+	// router.HandlerFunc(http.MethodGet, "/v1/page/:id", app.getPageByIdHandler)
 
-	router.HandlerFunc(http.MethodPost, "/v1/saveContent", app.initiateSaveDBContentHandler)
-	router.HandlerFunc(http.MethodPost, "/v1/saveContent/cancel", app.cancelSaveDBContentHandler)
-	router.HandlerFunc(http.MethodGet, "/v1/saveContent/status", app.getStatusSaveDBContentHandler)
+	// router.HandlerFunc(http.MethodPost, "/v1/saveContent", app.initiateSaveDBContentHandler)
+	// router.HandlerFunc(http.MethodPost, "/v1/saveContent/cancel", app.cancelSaveDBContentHandler)
+	// router.HandlerFunc(http.MethodGet, "/v1/saveContent/status", app.getStatusSaveDBContentHandler)
 
-	router.HandlerFunc(http.MethodPost, "/v1/crawl", app.initiateCrawlHandler)
-	router.HandlerFunc(http.MethodPost, "/v1/crawl/cancel", app.cancelCrawlHandler)
-	router.HandlerFunc(http.MethodGet, "/v1/crawl/status", app.getStatusCrawlHandler)
-	router.HandlerFunc(http.MethodGet, "/v1/crawl/logstream", app.streamCrawlerLogHandler)
+	// router.HandlerFunc(http.MethodPost, "/v1/crawl", app.initiateCrawlHandler)
+	// router.HandlerFunc(http.MethodPost, "/v1/crawl/cancel", app.cancelCrawlHandler)
+	// router.HandlerFunc(http.MethodGet, "/v1/crawl/status", app.getStatusCrawlHandler)
+	// router.HandlerFunc(http.MethodGet, "/v1/crawl/logstream", app.streamCrawlerLogHandler)
 
-	return app.logRequestMiddleware(router)
+	// return app.logRequestMiddleware(router)
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /v1/url", app.listURLHandler)
+	mux.HandleFunc("GET /v1/url/{id}", app.getURLByIdHandler)
+	mux.HandleFunc("POST /v1/url", app.createURLHandler)
+	mux.HandleFunc("PATCH /v1/url/{id}", app.updateURLHandler)
+
+	mux.HandleFunc("GET /v1/page", app.listPageHandler)
+	mux.HandleFunc("GET /v1/page/{id}", app.getPageByIdHandler)
+
+	mux.HandleFunc("POST /v1/saveContent", app.initiateSaveDBContentHandler)
+	mux.HandleFunc("POST /v1/saveContent/cancel", app.cancelSaveDBContentHandler)
+	mux.HandleFunc("GET /v1/saveContent/status", app.getStatusSaveDBContentHandler)
+
+	mux.HandleFunc("POST /v1/crawl", app.initiateCrawlHandler)
+	mux.HandleFunc("POST /v1/crawl/cancel", app.cancelCrawlHandler)
+	mux.HandleFunc("GET /v1/crawl/status", app.getStatusCrawlHandler)
+	mux.HandleFunc("GET /v1/crawl/logstream", app.streamCrawlerLogHandler)
+	return app.logRequestMiddleware(mux)
 }

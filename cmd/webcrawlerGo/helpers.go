@@ -82,7 +82,7 @@ func listenForSignals(
 	// listen to OS signal to send on sigChan when running server
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// wait for signal from teaProg
+	// wait for signal from teaProg (when running teaProg)
 	s := <-sigChan
 	// clear queue
 	queue.Clear()
