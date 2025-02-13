@@ -43,6 +43,12 @@ func (app *webapp) listPageHandler(w http.ResponseWriter, r *http.Request) {
 
 	input.URLId = app.readInt(qs, "url_id", 0, v)
 
+	if input.URLId < 1 {
+		v.AddError("url_id", "required as query parameter")
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
 	input.CommonFilters.Page = app.readInt(qs, "page", 1, v)
 	input.CommonFilters.PageSize = app.readInt(qs, "page_size", 10, v)
 	input.CommonFilters.Sort = app.readString(qs, "sort", "id")
