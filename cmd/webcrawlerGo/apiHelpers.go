@@ -7,8 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os/exec"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -32,10 +30,10 @@ func (app *webapp) notFoundResponse(w http.ResponseWriter, r *http.Request) {
 	app.errorResponse(w, r, http.StatusNotFound, message)
 }
 
-func (app *webapp) methodNotAllowedResponse(w http.ResponseWriter, r *http.Request) {
-	message := fmt.Sprintf("the %s method is not supported for this resource", r.Method)
-	app.errorResponse(w, r, http.StatusMethodNotAllowed, message)
-}
+// func (app *webapp) methodNotAllowedResponse(w http.ResponseWriter, r *http.Request) {
+// 	message := fmt.Sprintf("the %s method is not supported for this resource", r.Method)
+// 	app.errorResponse(w, r, http.StatusMethodNotAllowed, message)
+// }
 
 func (app *webapp) errorResponse(
 	w http.ResponseWriter,
@@ -223,24 +221,24 @@ func (app *webapp) readBool(
 	return
 }
 
-func (app *webapp) openBrowser(url string) {
-	var cmd *exec.Cmd
+// func (app *webapp) openBrowser(url string) {
+// 	var cmd *exec.Cmd
 
-	// Determine the OS and select the appropriate command to open the browser
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", url)
-	case "darwin": // macOS
-		cmd = exec.Command("open", url)
-	default: // Assume Linux or other Unix-like OS
-		cmd = exec.Command("xdg-open", url)
-	}
+// 	// Determine the OS and select the appropriate command to open the browser
+// 	switch runtime.GOOS {
+// 	case "windows":
+// 		cmd = exec.Command("cmd", "/c", "start", url)
+// 	case "darwin": // macOS
+// 		cmd = exec.Command("open", url)
+// 	default: // Assume Linux or other Unix-like OS
+// 		cmd = exec.Command("xdg-open", url)
+// 	}
 
-	err := cmd.Start()
-	if err != nil {
-		app.Loggers.multiLogger.Println("error opening browser: ", err)
-	}
-}
+// 	err := cmd.Start()
+// 	if err != nil {
+// 		app.Loggers.multiLogger.Println("error opening browser: ", err)
+// 	}
+// }
 
 type loggingResponseWriter struct {
 	http.ResponseWriter
