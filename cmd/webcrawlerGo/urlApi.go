@@ -165,7 +165,7 @@ func (app *webapp) listURLHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	urls, err := app.Models.URLs.GetAll(input.URLFilter, input.CommonFilters)
+	urls, metaData, err := app.Models.URLs.GetAll(input.URLFilter, input.CommonFilters)
 	if err != nil {
 		switch {
 		case errors.Is(err, models.ErrInvalidOrderBy):
@@ -180,7 +180,7 @@ func (app *webapp) listURLHandler(w http.ResponseWriter, r *http.Request) {
 		urls = []*models.URL{}
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"url_list": urls}, nil)
+	err = app.writeJSON(w, http.StatusOK, envelope{"url_list": urls, "metadata": metaData}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

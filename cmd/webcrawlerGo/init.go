@@ -32,7 +32,7 @@ func loadUrlsToQueue(
 		Sort:         "is_monitored",
 		SortSafeList: models.URLColumns,
 	}
-	dburls, err := m.GetAll(uf, cf)
+	dburls, _, err := m.GetAll(uf, cf)
 	if err != nil {
 		return 0, err
 	}

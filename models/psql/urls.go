@@ -56,12 +56,12 @@ func (u urlDB) Delete(id int) error {
 }
 
 // GetAll fetches all rows from urls table in orderBy order
-func (u urlDB) GetAll(uf models.URLFilter, cf models.CommonFilters) ([]*models.URL, error) {
-	return models.URLGetAll(uf, cf, models.QueryGetAllURL, u.DB, makePgSQLQuery)
+func (u urlDB) GetAll(uf models.URLFilter, cf models.CommonFilters) ([]*models.URL, models.Metadata, error) {
+	return models.URLGetAll(uf, cf, u.DB, makePgSQLQuery)
 }
 
 // GetAll fetches all rows where is_monitored is true from urls table in orderBy order
-func (u urlDB) GetAllMonitored(cf models.CommonFilters) ([]*models.URL, error) {
+func (u urlDB) GetAllMonitored(cf models.CommonFilters) ([]*models.URL, models.Metadata, error) {
 	uf := models.URLFilter{
 		IsMonitored:        true,
 		IsMonitoredPresent: true,
@@ -69,5 +69,5 @@ func (u urlDB) GetAllMonitored(cf models.CommonFilters) ([]*models.URL, error) {
 		IsAlivePresent:     true,
 	}
 
-	return models.URLGetAll(uf, cf, models.QueryGetAllURL, u.DB, makePgSQLQuery)
+	return models.URLGetAll(uf, cf, u.DB, makePgSQLQuery)
 }

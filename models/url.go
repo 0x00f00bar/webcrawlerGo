@@ -201,10 +201,11 @@ func URLDelete(id int, query string, db *sql.DB) error {
 func URLGetAll(
 	uf URLFilter,
 	cf CommonFilters,
-	query string,
 	db *sql.DB,
 	queryTransformFn func(string) string,
-) ([]*URL, error) {
+) ([]*URL, Metadata, error) {
+	query := `SELECT count(*) OVER(), id, url, first_encountered, last_checked, last_saved, is_monitored, is_alive,
+	version FROM urls WHERE url LIKE __ARG__`
 	url := fmt.Sprintf("%%%s%%", uf.URL)
 	args := []any{url}
 
@@ -219,7 +220,7 @@ func URLGetAll(
 
 	orderBy, err := GetOrderByQuery(&cf)
 	if err != nil {
-		return nil, err
+		return nil, Metadata{}, err
 	}
 	query += orderBy
 
@@ -233,17 +234,19 @@ func URLGetAll(
 
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, Metadata{}, err
 	}
 	defer rows.Close()
 
 	urls := []*URL{}
+	totalRecords := 0
 
 	for rows.Next() {
 
 		var url URL
 
 		err = rows.Scan(
+			&totalRecords,
 			&url.ID,
 			&url.URL,
 			&url.FirstEncountered,
@@ -254,14 +257,15 @@ func URLGetAll(
 			&url.Version,
 		)
 		if err != nil {
-			return nil, err
+			return nil, Metadata{}, err
 		}
 
 		urls = append(urls, &url)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, Metadata{}, err
 	}
-	return urls, nil
+	metadata := calculateMetadata(totalRecords, cf.Page, cf.PageSize)
+	return urls, metadata, nil
 }

@@ -28,8 +28,8 @@ type Models struct {
 }
 
 type URLModel interface {
-	GetAll(URLFilter, CommonFilters) ([]*URL, error)
-	GetAllMonitored(CommonFilters) ([]*URL, error)
+	GetAll(URLFilter, CommonFilters) ([]*URL, Metadata, error)
+	GetAllMonitored(CommonFilters) ([]*URL, Metadata, error)
 	GetById(id int) (*URL, error)
 	GetByURL(url string) (*URL, error)
 	Insert(*URL) error
