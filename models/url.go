@@ -60,7 +60,23 @@ type URL struct {
 
 func ValidateURL(v *internal.Validator, u *URL) {
 	v.Check(u.URL != "", "url", "must be provided")
-	_, err := url.ParseRequestURI(u.URL)
+	parsedURL, err := url.ParseRequestURI(u.URL)
+	if err == nil {
+		// check if URL is absolute URL
+		if parsedURL.Host == "" {
+			err = fmt.Errorf("invalid host or url")
+		}
+
+		// valid scheme: HTTP/HTTPS
+		if parsedURL.Scheme == "" || !internal.IsValidScheme(parsedURL.Scheme) {
+			err = fmt.Errorf("invalid scheme, allowed schemes: http, https")
+		}
+
+		if err != nil {
+			v.AddError("url", err.Error())
+		}
+		return
+	}
 	v.Check(err == nil, "url", "invalid url")
 }
 
