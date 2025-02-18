@@ -60,7 +60,7 @@ type URL struct {
 
 func ValidateURL(v *internal.Validator, u *URL) {
 	v.Check(u.URL != "", "url", "must be provided")
-	_, err := url.Parse(u.URL)
+	_, err := url.ParseRequestURI(u.URL)
 	v.Check(err == nil, "url", "invalid url")
 }
 
