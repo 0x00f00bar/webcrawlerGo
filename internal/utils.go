@@ -1,10 +1,16 @@
 package internal
 
 import (
+	"fmt"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
+	"time"
 )
+
+// Unsafe filename characters regex
+var unsafeChars = regexp.MustCompile(`[<>:"/\\|?*\ ]`)
 
 // ValuePresent checks if needle is present in haystack
 func ValuePresent(needle string, haystack []string) bool {
@@ -76,4 +82,45 @@ func PrefixString(s []string, prefix string) []string {
 		prefixed = append(prefixed, prefix+item)
 	}
 	return prefixed
+}
+
+// SavePageContent will write the pageContent of the urlPath to savePath
+func SavePageContent(urlPath, pageContent, savePath string, addedAt time.Time) error {
+	parsedURL, err := url.Parse(urlPath)
+	if err != nil {
+		return err
+	}
+	urlPathSplit := strings.Split(parsedURL.Path, "/")
+	pathLen := len(urlPathSplit)
+
+	// Replace unsafe filename characters
+	for i, path := range urlPathSplit {
+		urlPathSplit[i] = unsafeChars.ReplaceAllString(path, "_")
+	}
+
+	// use last item as filename
+	safeFileName := urlPathSplit[pathLen-1]
+	// URL Encode the filename
+	safeFileName = url.QueryEscape(safeFileName)
+
+	// keep path upto second last item
+	urlPathSplit = urlPathSplit[:pathLen-1]
+	filePath := strings.Join(urlPathSplit, "/")
+
+	// trim trailing / in savePath if exists
+	savePath = strings.TrimRight(savePath, "/")
+
+	CreateDirIfNotExists(savePath + filePath)
+	completeFilePath := fmt.Sprintf(
+		"%s%s/%s_%s.html",
+		savePath,
+		filePath,
+		safeFileName,
+		addedAt.Format("2006-01-02_15-04-05"),
+	)
+	err = os.WriteFile(completeFilePath, []byte(pageContent), 0644)
+	if err != nil {
+		return err
+	}
+	return nil
 }

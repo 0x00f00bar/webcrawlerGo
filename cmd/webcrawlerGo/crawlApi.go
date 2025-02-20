@@ -287,7 +287,9 @@ func (app *webapp) streamCrawlerLogHandler(w http.ResponseWriter, r *http.Reques
 
 		err := rc.Flush()
 		if err != nil {
-			app.Loggers.multiLogger.Println("============== streaming not supported ===============")
+			app.Loggers.multiLogger.Println(
+				"============== streaming not supported ===============",
+			)
 			w.Write([]byte("event-streaming is not supported by this endpoint"))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -296,7 +298,12 @@ func (app *webapp) streamCrawlerLogHandler(w http.ResponseWriter, r *http.Reques
 		for {
 			if !app.IsCrawling {
 				w.Header().Set("Connection", "close")
-				fmt.Fprintf(w, "data: %s - %s\n\n", time.Now().Format(time.RFC3339), "Crawling halted")
+				fmt.Fprintf(
+					w,
+					"data: %s - %s\n\n",
+					time.Now().Format(time.RFC3339),
+					"Crawling halted",
+				)
 				rc.Flush()
 				return
 			}

@@ -7,7 +7,6 @@ import (
 	"math"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -224,42 +223,13 @@ func saveDbContentToDisk(
 
 // savePageContent writes the fetched contents to disk
 func savePageContent(pageContents []*models.PageContent, basePath string) error {
-	// Unsafe filename characters regex
-	unsafeChars := regexp.MustCompile(`[<>:"/\\|?*\ ]`)
 	for _, pageContent := range pageContents {
-		parsedURL, err := url.Parse(pageContent.URL)
-		if err != nil {
-			return err
-		}
-		urlPathSplit := strings.Split(parsedURL.Path, "/")
-		pathLen := len(urlPathSplit)
-
-		// Replace unsafe filename characters
-		for i, path := range urlPathSplit {
-			urlPathSplit[i] = unsafeChars.ReplaceAllString(path, "_")
-		}
-
-		// use last item as filename
-		safeFileName := urlPathSplit[pathLen-1]
-		// URL Encode the filename
-		safeFileName = url.QueryEscape(safeFileName)
-
-		// keep path upto second last item
-		urlPathSplit = urlPathSplit[:pathLen-1]
-		filePath := strings.Join(urlPathSplit, "/")
-
-		// trim trailing / in basePath if exists
-		basePath = strings.TrimRight(basePath, "/")
-
-		internal.CreateDirIfNotExists(basePath + filePath)
-		completeFilePath := fmt.Sprintf(
-			"%s%s/%s_%s.html",
+		err := internal.SavePageContent(
+			pageContent.URL,
+			pageContent.Content,
 			basePath,
-			filePath,
-			safeFileName,
-			pageContent.AddedAt.Format(timeStampLayout),
+			pageContent.AddedAt,
 		)
-		err = os.WriteFile(completeFilePath, []byte(pageContent.Content), 0644)
 		if err != nil {
 			return err
 		}
