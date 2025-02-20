@@ -48,9 +48,9 @@ func validateFlags(v *internal.Validator, args *cmdFlags) {
 		fmt.Sprintf("invalid retry time: %d. Should be >= 0.", *args.retryTime),
 	)
 
-	// validate path when save to disk flag is true
-	if args.dbToDisk {
-		v.Check(args.savePath != "", "path", "must be provided with 'db2disk' flag")
+	// validate path when save to disk or out flag is true
+	if args.dbToDisk || args.takeOut {
+		v.Check(args.savePath != "", "path", "must be provided with 'db2disk' and 'out' flag")
 	}
 }
 

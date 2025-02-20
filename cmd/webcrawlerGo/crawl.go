@@ -130,6 +130,10 @@ func getCrawlerConfig(
 		PrettyLogger:   prettyLogger,
 	}
 
+	if cmdArgs.takeOut {
+		crawlerCfg.OutDir = cmdArgs.savePath
+	}
+
 	return crawlerCfg
 }
 

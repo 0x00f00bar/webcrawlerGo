@@ -46,7 +46,7 @@ Since v0.9.0 web APIs are available to manage the db over HTTP.
         Number of crawlers to invoke (default 10)
     -path string
         Output path to save the content of crawled web pages.
-        Applicable only with 'db2disk' flag. (default "./OUT/<timestamp>")
+        Applicable with 'db2disk' and 'save' flag. (default "./OUT/<timestamp>")
     -req-delay string
         Delay between subsequent requests.
         Min: 1ms (default "50ms")
@@ -54,6 +54,9 @@ Since v0.9.0 web APIs are available to manage the db over HTTP.
         Number of times to retry failed GET requests.
         With retry=2, crawlers will retry the failed GET urls
         twice after initial failure. (default 2)
+    -save
+        Save page content to disk while crawling.
+        Will save to directory given by 'path' flag.
     -server
         Open a local server on port 8100 to manage db. If provided, all other
         options will be ignored (except db-dsn and verbose).

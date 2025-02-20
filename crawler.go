@@ -69,6 +69,7 @@ type CrawlerConfig struct {
 	Ctx              context.Context    // context to quit on SIGINT/SIGTERM
 	robotsTxt        *string            // robots.txt as string (internal)
 	PrettyLogger     PrettyLogger       // optional logger to write to screen
+	OutDir           string             // Directory path to save the page content
 }
 
 // NewCrawler return pointer to a new Crawler
@@ -350,6 +351,12 @@ func (c *Crawler) savePageContent(urlpath string, doc *goquery.Document) error {
 	newPage := models.NewPage(uModel.ID, contentStr)
 	if err = c.Models.Pages.Insert(newPage); err != nil {
 		return fmt.Errorf("could not insert page into model: %v", err)
+	}
+	if c.OutDir != "" {
+		err = internal.SavePageContent(urlpath, contentStr, c.OutDir, newPage.AddedAt)
+		if err != nil {
+			return fmt.Errorf("could not save page content to disk: %v", err)
+		}
 	}
 	uModel.LastChecked = time.Now()
 	uModel.LastSaved = time.Now()

@@ -29,6 +29,7 @@ type cmdFlags struct {
 	updateHrefs    bool          // -update-hrefs
 	runserver      bool          // -server
 	verbose        bool          // -verbose
+	takeOut        bool          // -save
 }
 
 // parseCmdFlags will parse cmd flags and validate them.
@@ -91,7 +92,7 @@ Crawler will exit after saving to disk.`,
 	savePath := flag.String(
 		"path",
 		defaultSavePath,
-		"Output path to save the content of crawled web pages.\nApplicable only with 'db2disk' flag.",
+		"Output path to save the content of crawled web pages.\nApplicable with 'db2disk' and 'save' flag.",
 	)
 	cutOffDate := flag.String(
 		"date",
@@ -110,6 +111,7 @@ belonging to the baseurl.`,
 		`Open a local server on port 8100 to manage db. If provided, all other
 options will be ignored (except db-dsn and verbose).`,
 	)
+	takeOut := flag.Bool("save", false, "Save page content to disk while crawling.\nWill save to directory given by 'path' flag.")
 	verbose := flag.Bool("verbose", false, "Prints additional info while logging")
 
 	flag.Parse()
@@ -178,6 +180,7 @@ options will be ignored (except db-dsn and verbose).`,
 		cutOffDate:     parsedCutOffDate,
 		updateHrefs:    *updateHrefs,
 		verbose:        *verbose,
+		takeOut:        *takeOut,
 	}
 
 	validateFlags(v, &cmdArgs)
@@ -220,6 +223,10 @@ func logCmdArgs(cmdArgs *cmdFlags, f io.Writer) {
 		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %d", "Crawler count", *cmdArgs.nCrawlers))
 		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Idle time", cmdArgs.idleTimeout))
 		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Request delay", cmdArgs.reqDelay))
+		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %t", "Save to disk", cmdArgs.takeOut))
+		if cmdArgs.takeOut {
+			printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Save path", cmdArgs.savePath))
+		}
 	}
 
 	if len(cmdArgs.markedURLs) < 1 {
