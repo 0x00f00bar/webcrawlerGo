@@ -84,8 +84,8 @@ func PrefixString(s []string, prefix string) []string {
 	return prefixed
 }
 
-// SavePageContent will write the pageContent of the urlPath to savePath
-func SavePageContent(urlPath, pageContent, savePath string, addedAt time.Time) error {
+// SavePageContent will write the pageContent of the urlPath to saveDir
+func SavePageContent(urlPath, pageContent, saveDir string, addedAt time.Time) error {
 	parsedURL, err := url.Parse(urlPath)
 	if err != nil {
 		return err
@@ -107,13 +107,13 @@ func SavePageContent(urlPath, pageContent, savePath string, addedAt time.Time) e
 	urlPathSplit = urlPathSplit[:pathLen-1]
 	filePath := strings.Join(urlPathSplit, "/")
 
-	// trim trailing / in savePath if exists
-	savePath = strings.TrimRight(savePath, "/")
+	// trim trailing / in saveDir if exists
+	saveDir = strings.TrimRight(saveDir, "/")
 
-	CreateDirIfNotExists(savePath + filePath)
+	CreateDirIfNotExists(saveDir + filePath)
 	completeFilePath := fmt.Sprintf(
 		"%s%s/%s_%s.html",
-		savePath,
+		saveDir,
 		filePath,
 		safeFileName,
 		addedAt.Format("2006-01-02_15-04-05"),
