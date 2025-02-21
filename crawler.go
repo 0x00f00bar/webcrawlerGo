@@ -220,8 +220,12 @@ func (c *Crawler) Crawl(client *http.Client) {
 				if resp.StatusCode == http.StatusNotFound {
 					uModel, err := c.Models.URLs.GetByURL(urlpath)
 					if err != nil {
-						c.Log(fmt.Sprintf("%s: Error: could not get URL '%s' from model: %v", c.Name, urlpath, err))
-						runtime.Goexit()
+						c.Log(fmt.Sprintf("%s: Error while fetching URL '%s' from model: %v", c.Name, urlpath, err))
+						// runtime.Goexit()
+
+						// a new invalid url might get added to the queue, thus
+						// continue to next URL instead of exit
+						continue
 					}
 					uModel.IsAlive = false
 					uModel.LastChecked = time.Now()
