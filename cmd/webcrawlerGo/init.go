@@ -24,6 +24,7 @@ func loadUrlsToQueue(
 	m models.URLModel,
 	cmdArgs *cmdFlags,
 	loggers *loggers,
+	urls ...string,
 ) (int, error) {
 	uf := models.URLFilter{}
 	cf := models.CommonFilters{
@@ -36,6 +37,8 @@ func loadUrlsToQueue(
 	if err != nil {
 		return 0, err
 	}
+
+	UrlListPresent := len(urls) > 0
 	intervalDuration, _ := time.ParseDuration(fmt.Sprintf("%dh", *cmdArgs.updateDaysPast*24))
 	currentTime := time.Now()
 	var totalUrlsPushedToQ int = 0
@@ -61,6 +64,7 @@ func loadUrlsToQueue(
 			parsedUrlDB, err := url.Parse(urlDB.URL)
 			if err != nil {
 				loggers.multiLogger.Printf("Unable to parse url '%s' from db\n", urlDB.URL)
+				continue
 			}
 			// only process URLs belonging to baseURL
 			if parsedUrlDB.Hostname() == cmdArgs.baseURL.Hostname() {
@@ -69,6 +73,10 @@ func loadUrlsToQueue(
 				var fetchContent bool
 
 				switch {
+				// if UrlListPresent then just add to known URL
+				case UrlListPresent:
+					fetchContent = false
+
 				// add to queue if url is monitored and currentTime >= expiryTime
 				case urlDB.IsMonitored &&
 					(currentTime.After(expiryTime) || currentTime.Equal(expiryTime)):
@@ -102,5 +110,26 @@ func loadUrlsToQueue(
 			}
 		}
 	}
+
+	// add urls from urls list
+	for _, urlItem := range urls {
+		// skip urls containing ignored patterns
+		if internal.ContainsAny(urlItem, cmdArgs.ignorePattern) {
+			continue
+		}
+
+		parsedUrl, err := url.Parse(urlItem)
+		if err != nil {
+			loggers.multiLogger.Printf("Unable to parse url '%s' from url list\n", urlItem)
+			continue
+		}
+		// only process URLs belonging to baseURL
+		if parsedUrl.Hostname() == cmdArgs.baseURL.Hostname() {
+			q.InsertForce(urlItem)
+			q.SetMapValue(urlItem, true)
+			totalUrlsPushedToQ += 1
+		}
+	}
+
 	return totalUrlsPushedToQ, nil
 }

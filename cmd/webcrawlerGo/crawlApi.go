@@ -42,17 +42,26 @@ func (l *streamLogger) Quit() {
 
 func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		BaseURL        string  `json:"baseurl"`      // -baseurl
+		//required
+		BaseURL string `json:"baseurl"` // -baseurl
+
+		//option A
 		MarkedURLs     *string `json:"murls"`        // -murls
 		UpdateDaysPast *int    `json:"days"`         // -days
-		DBDSN          *string `json:"db-dsn"`       // -db-dsn
-		IdleTimeout    *string `json:"idle-time"`    // -idle-time
-		IgnorePattern  *string `json:"ignore"`       // -ignore
-		NCrawlers      *int    `json:"n"`            // -n
-		ReqDelay       *string `json:"req-delay"`    // -req-delay
-		RetryTime      *int    `json:"retry"`        // -retry
-		UserAgent      *string `json:"ua"`           // -ua
 		UpdateHrefs    *bool   `json:"update-hrefs"` // -update-hrefs
+
+		// option B
+		UrlList []string `json:"url_list"`
+
+		//common and optional
+		DBDSN         *string `json:"db-dsn"`    // -db-dsn
+		IdleTimeout   *string `json:"idle-time"` // -idle-time
+		IgnorePattern *string `json:"ignore"`    // -ignore
+		NCrawlers     *int    `json:"n"`         // -n
+		ReqDelay      *string `json:"req-delay"` // -req-delay
+		RetryTime     *int    `json:"retry"`     // -retry
+		UserAgent     *string `json:"ua"`        // -ua
+		SaveContent   *bool   `json:"save"`      // -save
 	}
 
 	if app.IsCrawling {
@@ -90,8 +99,14 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	URLSlice := []string{}
+	var UrlListPresent bool = true
+	if input.UrlList == nil {
+		input.UrlList = URLSlice
+		UrlListPresent = false
+	}
 	markedURLSlice := []string{}
-	if input.MarkedURLs != nil {
+	if input.MarkedURLs != nil && !UrlListPresent {
 		markedURLSlice = getMarkedURLS(*input.MarkedURLs)
 	}
 	if input.UpdateDaysPast == nil {
@@ -130,6 +145,18 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 		input.UpdateHrefs = new(bool)
 		*input.UpdateHrefs = false
 	}
+	if input.SaveContent == nil {
+		input.SaveContent = new(bool)
+		*input.SaveContent = false
+	}
+
+	// when URLList is provided ignore days, update-hrefs
+	if UrlListPresent {
+		msg := "url_list provided, ignoring flags: murls, update-hrefs, days"
+		app.Loggers.multiLogger.Print(msg)
+		*input.UpdateDaysPast = 999
+		*input.UpdateHrefs = false
+	}
 
 	requestDelay, err := time.ParseDuration(*input.ReqDelay)
 	if err != nil {
@@ -156,6 +183,7 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 		savePath:       defaultSavePath,
 		cutOffDate:     parsedCutOffDate,
 		updateHrefs:    *input.UpdateHrefs,
+		takeOut:        *input.SaveContent,
 	}
 
 	validateFlags(v, &cmdArgs)
@@ -190,14 +218,29 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 			app.StreamLogger = nil
 		}()
 
-		loadedURLs, err := initQueue(ctx, app.CrawlerQueue, &cmdArgs, app.Models, app.Loggers)
+		var loadedURLs int
+		if UrlListPresent {
+			loadedURLs, err = loadUrlsToQueue(
+				ctx,
+				app.CrawlerQueue,
+				app.Models.URLs,
+				&cmdArgs,
+				app.Loggers,
+				input.UrlList...)
+		} else {
+			loadedURLs, err = initQueue(ctx, app.CrawlerQueue, &cmdArgs, app.Models, app.Loggers)
+		}
 		if err != nil {
 			msg := fmt.Sprintf("Error while initialising queue: %v\n", err)
 			app.StreamLogger.Log(msg)
 			app.Loggers.multiLogger.Print(msg)
 			return
 		}
-		msg := fmt.Sprintf("Loaded %d URLs from model\n", loadedURLs)
+		urlSource := "model"
+		if UrlListPresent {
+			urlSource = "url_list"
+		}
+		msg := fmt.Sprintf("Loaded %d URLs from %s\n", loadedURLs, urlSource)
 		app.StreamLogger.Log(msg)
 		app.Loggers.multiLogger.Print(msg)
 
@@ -218,15 +261,16 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 
 		httpClient := getModifiedHTTPClient(maxIdleHttpConn)
 
-		var wg sync.WaitGroup
+		// var wg sync.WaitGroup
 		for _, crawler := range crawlerArmy {
-			wg.Add(1)
+			// wg.Add(1)
 			go func() {
-				defer wg.Done()
+				// defer wg.Done()
 				crawler.Crawl(httpClient)
 			}()
 		}
-		wg.Wait()
+		// wg.Wait()
+		<-app.StreamLogger.quitChan
 
 		app.Loggers.multiLogger.Println("Done crawling")
 	}()
