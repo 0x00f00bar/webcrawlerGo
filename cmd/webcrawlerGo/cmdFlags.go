@@ -111,7 +111,11 @@ belonging to the baseurl.`,
 		`Open a local server on port 8100 to manage db. If provided, all other
 options will be ignored (except db-dsn and verbose).`,
 	)
-	takeOut := flag.Bool("save", false, "Save page content to disk while crawling.\nWill save to directory given by 'path' flag.")
+	takeOut := flag.Bool(
+		"save",
+		false,
+		"Save page content to disk while crawling.\nWill save to directory given by 'path' flag.",
+	)
 	verbose := flag.Bool("verbose", false, "Prints additional info while logging")
 
 	flag.Parse()

@@ -49,7 +49,7 @@ func (app *webapp) serve(ctx context.Context) error {
 			app.Loggers.multiLogger.Println("Cancelling crawl...")
 			app.CancelCrawl()
 			// wait for crawlers to quit before shutdown
-			<-app.CrawlersQuit
+			time.Sleep(200 * time.Millisecond)
 		}
 		if app.IsSavingToDisk {
 			app.Loggers.multiLogger.Println("Cancelling content transfer...")
