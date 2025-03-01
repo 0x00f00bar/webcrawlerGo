@@ -62,6 +62,7 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 		RetryTime     *int    `json:"retry"`     // -retry
 		UserAgent     *string `json:"ua"`        // -ua
 		SaveContent   *bool   `json:"save"`      // -save
+		Path          *string `json:"path"`      // -path
 	}
 
 	if app.IsCrawling {
@@ -149,6 +150,10 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 		input.SaveContent = new(bool)
 		*input.SaveContent = false
 	}
+	if input.Path == nil {
+		input.Path = new(string)
+		*input.Path = defaultSavePath
+	}
 
 	// when URLList is provided ignore days, update-hrefs
 	if UrlListPresent {
@@ -180,7 +185,7 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 		reqDelay:       requestDelay,
 		idleTimeout:    idleTime,
 		retryTime:      input.RetryTime,
-		savePath:       defaultSavePath,
+		savePath:       *input.Path,
 		cutOffDate:     parsedCutOffDate,
 		updateHrefs:    *input.UpdateHrefs,
 		takeOut:        *input.SaveContent,
