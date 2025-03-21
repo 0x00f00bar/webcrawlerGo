@@ -15,7 +15,7 @@ import (
 
 type envelope map[string]any
 
-const readMaxRequestBytes = 1024
+const readMaxRequestBytes = 100000
 
 func (app *webapp) logError(r *http.Request, err error) {
 	app.Loggers.multiLogger.Print(
