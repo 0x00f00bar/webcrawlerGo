@@ -54,15 +54,16 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 		UrlList []string `json:"url_list"`
 
 		//common and optional
-		DBDSN         *string `json:"db-dsn"`    // -db-dsn
-		IdleTimeout   *string `json:"idle-time"` // -idle-time
-		IgnorePattern *string `json:"ignore"`    // -ignore
-		NCrawlers     *int    `json:"n"`         // -n
-		ReqDelay      *string `json:"req-delay"` // -req-delay
-		RetryTime     *int    `json:"retry"`     // -retry
-		UserAgent     *string `json:"ua"`        // -ua
-		SaveContent   *bool   `json:"save"`      // -save
-		Path          *string `json:"path"`      // -path
+		DBDSN         *string `json:"db-dsn"`          // -db-dsn
+		IdleTimeout   *string `json:"idle-time"`       // -idle-time
+		IgnorePattern *string `json:"ignore"`          // -ignore
+		NCrawlers     *int    `json:"n"`               // -n
+		ReqDelay      *string `json:"req-delay"`       // -req-delay
+		RetryTime     *int    `json:"retry"`           // -retry
+		UserAgent     *string `json:"ua"`              // -ua
+		SaveContent   *bool   `json:"save"`            // -save
+		Path          *string `json:"path"`            // -path
+		SkipVerifyTLS *bool   `json:"skip-verify-tls"` // -skip-verify
 	}
 
 	if app.IsCrawling {
@@ -154,6 +155,10 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 		input.Path = new(string)
 		*input.Path = defaultSavePath
 	}
+	if input.SkipVerifyTLS == nil {
+		input.SkipVerifyTLS = new(bool)
+		*input.SkipVerifyTLS = false
+	}
 
 	// when URLList is provided ignore days, update-hrefs
 	if UrlListPresent {
@@ -189,6 +194,7 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 		cutOffDate:     parsedCutOffDate,
 		updateHrefs:    *input.UpdateHrefs,
 		takeOut:        *input.SaveContent,
+		skipVerifyTLS:  *input.SkipVerifyTLS,
 	}
 
 	validateFlags(v, &cmdArgs)
@@ -264,7 +270,7 @@ func (app *webapp) initiateCrawlHandler(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		httpClient := getModifiedHTTPClient(maxIdleHttpConn)
+		httpClient := getModifiedHTTPClient(maxIdleHttpConn, cmdArgs.skipVerifyTLS)
 
 		// var wg sync.WaitGroup
 		for _, crawler := range crawlerArmy {

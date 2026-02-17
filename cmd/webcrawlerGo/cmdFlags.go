@@ -30,6 +30,7 @@ type cmdFlags struct {
 	runserver      bool          // -server
 	verbose        bool          // -verbose
 	takeOut        bool          // -save
+	skipVerifyTLS  bool          // -skip-verify
 }
 
 // parseCmdFlags will parse cmd flags and validate them.
@@ -117,6 +118,7 @@ options will be ignored (except db-dsn and verbose).`,
 		"Save page content to disk while crawling.\nWill save to directory given by 'path' flag.",
 	)
 	verbose := flag.Bool("verbose", false, "Prints additional info while logging")
+	skipVerify := flag.Bool("skip-verify", false, "Skip TLS certificate verification")
 
 	flag.Parse()
 
@@ -185,6 +187,7 @@ options will be ignored (except db-dsn and verbose).`,
 		updateHrefs:    *updateHrefs,
 		verbose:        *verbose,
 		takeOut:        *takeOut,
+		skipVerifyTLS:  *skipVerify,
 	}
 
 	validateFlags(v, &cmdArgs)
@@ -228,6 +231,7 @@ func logCmdArgs(cmdArgs *cmdFlags, f io.Writer) {
 		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Idle time", cmdArgs.idleTimeout))
 		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Request delay", cmdArgs.reqDelay))
 		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %t", "Save to disk", cmdArgs.takeOut))
+		printAndLog(printCyan, f, fmt.Sprintf("%-16s: %t", "Verify TLS", !cmdArgs.skipVerifyTLS))
 		if cmdArgs.takeOut {
 			printAndLog(printCyan, f, fmt.Sprintf("%-16s: %s", "Save path", cmdArgs.savePath))
 		}

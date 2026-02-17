@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
@@ -45,7 +46,7 @@ func beginCrawl(
 		return err
 	}
 
-	httpClient := getModifiedHTTPClient(maxIdleHttpConn)
+	httpClient := getModifiedHTTPClient(maxIdleHttpConn, cmdArgs.skipVerifyTLS)
 
 	// init waitgroup
 	var wg sync.WaitGroup
@@ -89,9 +90,14 @@ func initQueue(
 	return loadUrlsToQueue(ctx, q, m.URLs, cmdArgs, loggers)
 }
 
-func getModifiedHTTPClient(maxIdleConn int) *http.Client {
+func getModifiedHTTPClient(maxIdleConn int, skipVerifyTLS bool) *http.Client {
 	modifiedTransport := http.DefaultTransport.(*http.Transport).Clone()
 	modifiedTransport.MaxIdleConnsPerHost = maxIdleConn
+	if skipVerifyTLS {
+		modifiedTransport.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	}
 
 	httpClient := &http.Client{
 		Timeout:   defaultTimeout,
@@ -128,6 +134,7 @@ func getCrawlerConfig(
 		FailedRequests: retryRequestStats,
 		Ctx:            ctx,
 		PrettyLogger:   prettyLogger,
+		SkipVerifyTLS:  cmdArgs.skipVerifyTLS,
 	}
 
 	if cmdArgs.takeOut {

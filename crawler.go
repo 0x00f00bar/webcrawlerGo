@@ -2,6 +2,7 @@ package webcrawler
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -70,6 +71,7 @@ type CrawlerConfig struct {
 	robotsTxt        *string            // robots.txt as string (internal)
 	PrettyLogger     PrettyLogger       // optional logger to write to screen
 	OutDir           string             // Directory path to save the page content
+	SkipVerifyTLS    bool               // Skip verfication of TLS
 }
 
 // NewCrawler return pointer to a new Crawler
@@ -145,7 +147,7 @@ func validateConfig(cfg *CrawlerConfig) error {
 
 	// get robots.txt file
 	if cfg.robotsTxt == nil {
-		robotTxt, err := getRobotsTxt(cfg.BaseURL, cfg.UserAgent)
+		robotTxt, err := getRobotsTxt(cfg.BaseURL, cfg.UserAgent, cfg.SkipVerifyTLS)
 		if err != nil {
 			return err
 		}
@@ -220,7 +222,14 @@ func (c *Crawler) Crawl(client *http.Client) {
 				if resp.StatusCode == http.StatusNotFound {
 					uModel, err := c.Models.URLs.GetByURL(urlpath)
 					if err != nil {
-						c.Log(fmt.Sprintf("%s: Error while fetching URL '%s' from model: %v", c.Name, urlpath, err))
+						c.Log(
+							fmt.Sprintf(
+								"%s: Error while fetching URL '%s' from model: %v",
+								c.Name,
+								urlpath,
+								err,
+							),
+						)
 						// runtime.Goexit()
 
 						// a new invalid url might get added to the queue, thus
@@ -231,7 +240,14 @@ func (c *Crawler) Crawl(client *http.Client) {
 					uModel.LastChecked = time.Now()
 					err = c.Models.URLs.Update(uModel)
 					if err != nil {
-						c.Log(fmt.Sprintf("%s: FATAL. could not update URL '%s' model: %v", c.Name, uModel.URL, err))
+						c.Log(
+							fmt.Sprintf(
+								"%s: FATAL. could not update URL '%s' model: %v",
+								c.Name,
+								uModel.URL,
+								err,
+							),
+						)
 						runtime.Goexit()
 					}
 				}
@@ -486,7 +502,7 @@ func (c *Crawler) Log(msg string) {
 }
 
 // getRobotsTxt will return the <baseURL>/robots.txt file if found as string
-func getRobotsTxt(baseUrl *url.URL, userAgent string) (*string, error) {
+func getRobotsTxt(baseUrl *url.URL, userAgent string, skipVerifyTLS bool) (*string, error) {
 
 	urlString := fmt.Sprintf("%s://%s/robots.txt", baseUrl.Scheme, baseUrl.Host)
 	req, err := http.NewRequest(http.MethodGet, urlString, nil)
@@ -495,8 +511,15 @@ func getRobotsTxt(baseUrl *url.URL, userAgent string) (*string, error) {
 	}
 
 	req.Header.Set("User-Agent", userAgent)
+	modifiedTransport := http.DefaultTransport.(*http.Transport).Clone()
+	if skipVerifyTLS {
+		modifiedTransport.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	}
 	httpClient := &http.Client{
-		Timeout: 5 * time.Second,
+		Timeout:   5 * time.Second,
+		Transport: modifiedTransport,
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
